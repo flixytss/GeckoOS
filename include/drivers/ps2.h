@@ -15,3 +15,5 @@ bool test_ps2_port(bool port);
 void disable_ps2_devices();
 void enable_ps2_devices();
 uint8_t ps2_init();
+
+extern bool has_ps2mouse_support;

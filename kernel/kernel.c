@@ -41,13 +41,20 @@ void kmain();
     extern struct multiboot2_tag_bootloader_name* bootloader_info;
 #endif
 
-// uint64_t global_table;
-
-// extern struct pci_bus pci_root_bus;
 extern struct multiboot2_mmap_entry max_mem_used;
-extern struct madt_iso pit_timer_iso;
-
 bool has_apic;
+
+typedef void (*driver_init)();
+driver_init drivers[] = {
+    vfs_init,
+    terminal_init,
+    drives_init,
+    enumerate_pci,
+    pci_detect_controllers,
+    net_init,
+    arp_init,
+    keyboard_install
+};
 
 __attribute__((section(".text.entry")))
 void _entry(uint64_t mbi) {
@@ -59,9 +66,6 @@ void _entry(uint64_t mbi) {
         for (;;)
             asm volatile("hlt");
     }
-    register_interrupt_handler(INT_PAGEFAULT, page_fault);
-    outb(0x22, 0x70);
-    outb(0x23, 0x01);
 
     // Setting up interrupts
 
@@ -70,56 +74,37 @@ void _entry(uint64_t mbi) {
     int ret = acpi_init();
     if (ret != 0) {
         set_printf_color(VGA_COLOR_RED);
-            printf("initializing apic failed: %d \n", ret);
+            printf("Initializing apic failed: %d \n", ret);
         set_printf_color(VGA_COLOR_WHITE);
     }
 
-    printc("Mapping IDT... \n", VGA_COLOR_LIGHT_GREY);
     init_idt();
-    printc("Installing IRQ... \n", VGA_COLOR_LIGHT_GREY);
     irq_install();
 
-    // printf("%x %x\n", test_ps2_port(0), test_ps2_port(1));
-
-    // pit_timer_wait(100);
     if (has_apic) {
         asm volatile("cli"); // cutting interrupts while we set em up
-        printc("Setting up LAPIC... \n", VGA_COLOR_LIGHT_GREY);
         ret = lapic_init();
         if (ret) {
             printf("Setting up LAPIC failed err %d", ret);
         }
-        printc("Preparing IOAPIC... \n", VGA_COLOR_LIGHT_GREY);
         ioapic_init();
         asm volatile("sti"); // repoening interrupts
 
-        printc("Enabling Timer...\n", VGA_COLOR_LIGHT_GREY);
         start_pit_timer(PITHZ);
         lapic_timer_start();
         lapic_start_cores();
-    } else {
-        start_pit_timer(PITHZ);
     }
-    // hardware init
-    printc("Enabling hardware devices...\n", VGA_COLOR_LIGHT_GREY);
-    // basic stuff
-    vfs_init();
-    terminal_init();
-    register_interrupt_handler(0x6, ud_exception_handler);
 
-    // pci init
-    drives_init();
-    enumerate_pci();
-    pci_detect_controllers();
+    printc("Enabling some drivers\n", VGA_COLOR_LIGHT_GREY);
+    for (int i = 0; i < (sizeof(drivers) / sizeof(drivers[0])); i++) drivers[i]();
+    if (has_ps2mouse_support) mouse_init();
 
-    // network init
-    net_init();
-    arp_init();
+    register_interrupt_handler(INT_PAGEFAULT, page_fault);
+    register_interrupt_handler(INT_INVINS, ud_exception_handler);
+    outb(0x22, 0x70); // I think this is support for Cyrix processors
+    outb(0x23, 0x01);
 
-    // ps2
-    if (ps2_init() & (1 << 1)) mouse_init();
-    keyboard_install();
-    set_layout(HID_LAYOUTS[0]);
+    set_layout(PS2_LAYOUTS[0]);
 
     #ifndef DEBUG
         terminal_clear(TERM_COLOR);

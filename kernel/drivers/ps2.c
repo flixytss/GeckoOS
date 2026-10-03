@@ -14,6 +14,8 @@
     Someone keep working on this, it dosen't work but it do something at least
 */
 
+bool has_ps2mouse_support = false; // this means dual channel
+
 void ps2_clear_input_buffer_status() {
     uint8_t ps2_sts = inb(PS2_CMD_PORT);
     if (ps2_sts & (1 << 1)) // If the Input buffer status is set (full), clear it
@@ -131,6 +133,8 @@ uint8_t ps2_init() {
     if (is_dual_channel) {
         outb(PS2_CMD_PORT, 0xA9);
         if (inb(PS2_DATA_PORT) != 0) ret_code |= (1 << 3);
+
+        has_ps2mouse_support = true;
     }
 
     enable_ps2_devices();
@@ -141,7 +145,6 @@ uint8_t ps2_init() {
     if (send_ps2_device_byte(0xF5, 0) != 0xFA) {
         // printf("Eror see\n");
     }
-
 
     return ret_code;
 }
