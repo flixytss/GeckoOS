@@ -1,12 +1,10 @@
 
 #include "drivers/apic/lapic.h"
 #include "drivers/ps2mouse.h"
-#include "drivers/apic/ioapic.h"
 #include "drivers/ps2.h"
-#include "drivers/tables/irq.h"
+#include "arch/x86_64/irq.h"
 #include "drivers/vga.h"
 #include "ports.h"
-#include "sys/types.h"
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
 #include <mem.h>

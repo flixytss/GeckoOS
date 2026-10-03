@@ -158,6 +158,7 @@ static void ed_move_down(void) {
 }
 //save
 static void ed_save(struct drive_fs_t *fs) {
+    #if 0
     if (!fs) {
         ed_fill_row(ED_H - 1, ed_color_status);
         const char *msg = " [ERROR: filesystem not mounted]";
@@ -169,14 +170,16 @@ static void ed_save(struct drive_fs_t *fs) {
                              (const uint8_t *)ed_buf, (size_t)ed_len);
     if (r == 0) ed_dirty = false;
     ed_draw_status();
+    #endif
 }
 
+#if 0
 static void ed_load(struct drive_fs_t *fs) {
     ed_len = 0;
     ed_buf[0] = '\0';
     if (!fs) return;
 
-    struct fs_entries_t entries = fs->get_entries((void *)fs);
+    struct fs_entries_t entries = fs->root_dir.get_entries(&fs->root_dir);
     int found = -1;
     for (int i = 0; i < (int)entries.count; i++) {
         if (entries.entries[i].type != ENTRY_FILE) continue;
@@ -206,6 +209,7 @@ static void ed_load(struct drive_fs_t *fs) {
     }
     ed_buf[ed_len] = '\0';
 }
+#endif
 
 static void ed_strcpy(char *dst, const char *src, int maxlen) {
     int i = 0;
@@ -223,7 +227,7 @@ void editor_run(struct drive_fs_t *fs, const char *filename, uint8_t color) {
     ed_color_status = vga_entry_color(VGA_COLOR_BLACK, VGA_COLOR_CYAN);
 
     vga_clear(ed_color_text);
-    ed_load(fs);
+    // ed_load(fs);
     ed_redraw();
 
     bool ctrl_held = false;

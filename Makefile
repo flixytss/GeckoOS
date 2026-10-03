@@ -98,7 +98,7 @@ run-sata: fat32.img
 	  -monitor stdio \
 	  -drive id=disk,file=fat32.img,if=none -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0
 
-run-ide: fat32.img
+run-ide: # fat32.img
 	qemu-system-x86_64 -machine pc \
 	  -cdrom gecko.iso -m 512M \
 	  -boot order=d \

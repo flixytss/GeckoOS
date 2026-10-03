@@ -9,7 +9,7 @@
 #include <ports.h>
 #include <layouts/kb_layouts.h>
 #include <stdbool.h>
-#include <drivers/tables/isr.h>
+#include <arch/x86_64/isr.h>
 
 #define PS2_KB_BUFF_SIZE 512
 

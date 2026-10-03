@@ -4,10 +4,13 @@
 // Help with transforming FAT16 to FAT32 and help with debugging
 
 
+#include "fs/vfs.h"
 #include <fs/fat32.h>
 #include <drivers/ata.h>
 #include <mem.h>
+#include <stddef.h>
 #include <terminal/terminal.h>
+#include <terminal/printf.h>
 #include <colors.h>
 #include <partition/partition.h>
 #include <fs/fs.h>
@@ -243,62 +246,6 @@ static void fat32_dir_iterate(struct kdrive_t *drive, FAT32_Volume *pvol,
     }
 }
 
-static size_t fat32_file_read(struct drive_file_t *file, size_t offset,
-                               size_t len, uint8_t *buf)
-{
-    if (offset >= file->file_size) return 0;
-    size_t remaining = file->file_size - offset;
-    if (len > remaining) len = remaining;
-
-    FAT32_Volume *pvol   = (FAT32_Volume *)file->fs->userdata1;
-    size_t cluster_size  = (size_t)pvol->bpb.bytes_per_sector *
-                           pvol->bpb.sectors_per_cluster;
-    uint32_t current_cluster = (uint32_t)file->userdata2;
-
-    // Skip clusters to reach the requested offset
-    uint32_t clusters_to_skip = (uint32_t)(offset / cluster_size);
-    size_t   cluster_offset   = offset % cluster_size;
-    for (uint32_t i = 0; i < clusters_to_skip; i++) {
-        current_cluster = fat32_next_cluster(file->drive, pvol, current_cluster);
-        if (current_cluster >= FAT32_CLUSTER_BAD) return 0;
-    }
-
-    size_t bytes_read = 0;
-    while (bytes_read < len) {
-        if (current_cluster < 2 || current_cluster >= FAT32_CLUSTER_BAD) break;
-
-        uint32_t lba              = cluster_to_lba(pvol, current_cluster);
-        size_t   offset_in_cluster = cluster_offset;
-        int32_t  bytes_in_cluster  = (int32_t)(cluster_size - cluster_offset);
-        uint32_t to_copy = (uint32_t)(len - bytes_read);
-        if ((int32_t)to_copy > bytes_in_cluster)
-            to_copy = (uint32_t)bytes_in_cluster;
-
-        while (to_copy > 0) {
-            uint32_t sector_index  = (uint32_t)(offset_in_cluster / file->drive->sector_size);
-            uint32_t offset_in_sec = (uint32_t)(offset_in_cluster % file->drive->sector_size);
-            uint32_t avail         = file->drive->sector_size - offset_in_sec;
-            uint32_t chunk         = to_copy < avail ? to_copy : avail;
-
-            if (file->drive->read((void*)file->drive, lba + sector_index, 1,
-                                   sector_buf) < 0)
-                return bytes_read > 0 ? bytes_read : (size_t)-1;
-
-            memcpy(buf + bytes_read, sector_buf + offset_in_sec, chunk);
-            bytes_read        += chunk;
-            offset_in_cluster += chunk;
-            to_copy           -= chunk;
-        }
-
-        cluster_offset = offset_in_cluster;
-        if (cluster_offset >= cluster_size) {
-            cluster_offset  = 0;
-            current_cluster = fat32_next_cluster(file->drive, pvol, current_cluster);
-        }
-    }
-    return bytes_read;
-}
-
 static size_t fat32_file_write(struct drive_file_t *file, size_t offset,
                                 size_t len, const uint8_t *buf)
 {
@@ -315,7 +262,7 @@ static size_t fat32_file_write(struct drive_file_t *file, size_t offset,
     size_t   cluster_offset   = offset % cluster_size;
 
     for (uint32_t i = 0; i < clusters_to_skip; i++) {
-        current_cluster = fat32_next_cluster(file->drive, pvol, current_cluster);
+        current_cluster = fat32_next_cluster(file->fs->drive, pvol, current_cluster);
         if (current_cluster >= FAT32_CLUSTER_BAD) return bytes_written;
     }
 
@@ -327,16 +274,16 @@ static size_t fat32_file_write(struct drive_file_t *file, size_t offset,
         size_t   offset_in_cluster = cluster_offset;
 
         while (bytes_written < len && offset_in_cluster < cluster_size) {
-            uint32_t sector_index  = (uint32_t)(offset_in_cluster / file->drive->sector_size);
-            uint32_t offset_in_sec = (uint32_t)(offset_in_cluster % file->drive->sector_size);
-            uint32_t avail         = file->drive->sector_size - offset_in_sec;
+            uint32_t sector_index  = (uint32_t)(offset_in_cluster / file->fs->drive->sector_size);
+            uint32_t offset_in_sec = (uint32_t)(offset_in_cluster % file->fs->drive->sector_size);
+            uint32_t avail         = file->fs->drive->sector_size - offset_in_sec;
             uint32_t chunk         = (uint32_t)(len - bytes_written);
             if (chunk > avail) chunk = avail;
 
-            if (file->drive->read((void*)file->drive, lba + sector_index, 1, tmp) < 0)
+            if (file->fs->drive->read((void*)file->fs->drive, lba + sector_index, 1, tmp) < 0)
                 return bytes_written;
             memcpy(tmp + offset_in_sec, buf + bytes_written, chunk);
-            if (file->drive->write((void*)file->drive, lba + sector_index, 1, tmp) < 0)
+            if (file->fs->drive->write((void*)file->fs->drive, lba + sector_index, 1, tmp) < 0)
                 return bytes_written;
 
             bytes_written      += chunk;
@@ -344,7 +291,7 @@ static size_t fat32_file_write(struct drive_file_t *file, size_t offset,
         }
         cluster_offset = 0;
         if (bytes_written < len)
-            current_cluster = fat32_next_cluster(file->drive, pvol, current_cluster);
+            current_cluster = fat32_next_cluster(file->fs->drive, pvol, current_cluster);
     }
     return bytes_written;
 }
@@ -500,43 +447,6 @@ int fat32_create_file(struct drive_fs_t *fs, char *name,
     return fat32_write_dir_entry(drive, ctx.found_lba, ctx.found_idx, &entry);
 }
 
-int fat32_write_file(struct drive_fs_t *fs, char *name,
-                      const uint8_t *content, size_t len)
-{
-    FAT32_Volume   *pvol  = (FAT32_Volume *)fs->userdata1;
-    struct kdrive_t *drive = fs->drive;
-
-    uint8_t tmp[ATA_SECTOR_SIZE];
-    DirSearchCtx ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.find_match = 1;
-    encode_83_name(name, ctx.target8, ctx.target3);
-
-    fat32_dir_iterate(drive, pvol, pvol->root_cluster, tmp, dir_search_cb, &ctx);
-
-    if (!ctx.found)
-        return fat32_create_file(fs, name, content, len);
-
-    // Free old cluster chain
-    uint32_t old_cluster = ((uint32_t)ctx.result.first_cluster_high << 16) |
-                            ctx.result.first_cluster_low;
-    fat32_free_cluster_chain(drive, pvol, old_cluster);
-
-    // Allocate new chain and write content
-    uint32_t first_cluster = fat32_write_cluster_chain(drive, pvol, content, len);
-    if (first_cluster == 0 && len > 0) return -1;
-
-    // Update directory entry in place
-    FAT32_DirEntry updated = ctx.result;
-    updated.first_cluster_high = (uint16_t)(first_cluster >> 16);
-    updated.first_cluster_low  = (uint16_t)(first_cluster & 0xFFFF);
-    updated.file_size           = (uint32_t)len;
-    updated.write_date          = (uint16_t)((44 << 9) | (1 << 5) | 1);
-    updated.write_time          = 0;
-
-    return fat32_write_dir_entry(drive, ctx.found_lba, ctx.found_idx, &updated);
-}
-
 int fat32_delete_file(struct drive_fs_t *fs, char *name)
 {
     if (!fs) return -1;
@@ -561,51 +471,6 @@ int fat32_delete_file(struct drive_fs_t *fs, char *name)
     FAT32_DirEntry del = ctx.result;
     del.name[0] = FAT32_ENTRY_FREE;
     return fat32_write_dir_entry(drive, ctx.found_lba, ctx.found_idx, &del);
-}
-
-//ember2819
-int fat32_append_file(struct drive_fs_t *fs, char *name,
-                       const uint8_t *content, size_t len)
-{
-    if (!fs) return -1;
-
-    static uint8_t appbuf[4096];
-    int total = 0;
-
-    struct fs_entries_t entries = fs->get_entries((void*)fs);
-    int found = -1;
-    for (int i = 0; i < (int)entries.count; i++) {
-        if (entries.entries[i].type != ENTRY_FILE) continue;
-        const char *a = entries.entries[i].file.name;
-        const char *b = name;
-        int match = 1;
-        while (*a && *b) {
-            char ca = (*a >= 'a' && *a <= 'z') ? *a - 32 : *a;
-            char cb = (*b >= 'a' && *b <= 'z') ? *b - 32 : *b;
-            if (ca != cb) { match = 0; break; }
-            a++; b++;
-        }
-        if (match && *a == '\0' && *b == '\0') { found = i; break; }
-    }
-
-    if (found >= 0) {
-        int j = 0;
-        while (total < 4000) {
-            uint8_t tmp[128];
-            int chunk = (int)entries.entries[found].file.read(
-                (void*)&entries.entries[found].file, (size_t)(j * 128), 128, tmp);
-            if (chunk <= 0) break;
-            for (int k = 0; k < chunk && total < 4000; k++)
-                appbuf[total++] = tmp[k];
-            j++;
-        }
-        fat32_delete_file(fs, name);
-    }
-
-    for (size_t i = 0; i < len && total < 4095; i++)
-        appbuf[total++] = content[i];
-
-    return fat32_create_file(fs, name, appbuf, (size_t)total);
 }
 
 //ember2819
@@ -674,6 +539,9 @@ static int enum_count_cb(FAT32_DirEntry *e, uint32_t lba,
     return 0;
 }
 
+static struct fs_entries_t fat32_get_dir_entries(struct drive_fs_t *fs, uint32_t dir_cluster);
+static struct fs_entries_t fat32_fs_get_dir_entries(struct drive_dir_t* dir) { return fat32_get_dir_entries(dir->fs, dir->userdata2); }
+
 static int enum_fill_cb(FAT32_DirEntry *e, uint32_t lba,
                          uint32_t idx_in_sec, void *ctx_raw)
 {
@@ -691,24 +559,22 @@ static int enum_fill_cb(FAT32_DirEntry *e, uint32_t lba,
     if (e->attributes & FAT32_ATTR_DIRECTORY) {
         entry->type     = ENTRY_DIRECTORY;
         entry->dir.fs   = ctx->fs;
-        entry->dir.drive = ctx->fs->drive;
+        entry->dir.userdata2 = cluster;
+        entry->dir.get_entries = fat32_fs_get_dir_entries;
         format_83_name(e->name, e->ext, entry->dir.name);
     } else {
         entry->type            = ENTRY_FILE;
         entry->file.fs         = ctx->fs;
-        entry->file.drive      = ctx->fs->drive;
         entry->file.file_size  = e->file_size;
         entry->file.userdata1  = ctx->pvol;
         entry->file.userdata2  = (size_t)cluster;
-        entry->file.read       = (fn_df_read)fat32_file_read;
-        entry->file.write      = (fn_df_write)fat32_file_write;
         format_83_name(e->name, e->ext, entry->file.name);
     }
     ctx->idx++;
     return 0;
 }
 
-static struct fs_entries_t fat32_get_root_entries(struct drive_fs_t *fs)
+static struct fs_entries_t fat32_get_dir_entries(struct drive_fs_t *fs, uint32_t dir_cluster)
 {
     FAT32_Volume *pvol = (FAT32_Volume *)fs->userdata1;
     struct fs_entries_t result;
@@ -722,7 +588,7 @@ static struct fs_entries_t fat32_get_root_entries(struct drive_fs_t *fs)
     ctx.fs       = fs;
     ctx.counting = 1;
 
-    fat32_dir_iterate(fs->drive, pvol, pvol->root_cluster, tmp,
+    fat32_dir_iterate(fs->drive, pvol, dir_cluster, tmp,
                       enum_count_cb, &ctx);
 
     if (ctx.count == 0) return result;
@@ -732,12 +598,17 @@ static struct fs_entries_t fat32_get_root_entries(struct drive_fs_t *fs)
     ctx.idx      = 0;
     ctx.counting = 0;
 
-    fat32_dir_iterate(fs->drive, pvol, pvol->root_cluster, tmp,
+    fat32_dir_iterate(fs->drive, pvol, dir_cluster, tmp,
                       enum_fill_cb, &ctx);
 
     result.count   = ctx.count;
     result.entries = ctx.entries;
     return result;
+}
+
+static struct fs_entries_t fat32_get_root_entries(struct drive_fs_t *fs)
+{
+    return fat32_get_dir_entries(fs, fs->root_dir.userdata2);
 }
 
 struct drive_fs_t *fat32_drive_open(struct kdrive_t *drive,
@@ -754,14 +625,12 @@ struct drive_fs_t *fat32_drive_open(struct kdrive_t *drive,
     memcpy(&volume.bpb, sector_buf, sizeof(FAT32_BPB));
 
     if (volume.bpb.bytes_per_sector == 0 || volume.bpb.sectors_per_cluster == 0) {
-        kprintf(SEVERITY_ERROR,
-                "FAT32] Error: invalid BPB (zero bytes/sector or sectors/cluster)\n");
+        printf("FAT32] Error: invalid BPB (zero bytes/sector or sectors/cluster)\n");
         return NULL;
     }
 
     if (volume.bpb.sectors_per_fat_16 != 0) {
-        kprintf(SEVERITY_ERROR,
-                "FAT32] Error: sectors_per_fat_16 != 0; this may be a FAT16 volume\n");
+        printf("FAT32] Error: sectors_per_fat_16 != 0; this may be a FAT16 volume\n");
         return NULL;
     }
 
@@ -779,7 +648,14 @@ struct drive_fs_t *fat32_drive_open(struct kdrive_t *drive,
 
     filesystem->drive       = drive;
     filesystem->userdata1   = pvolume;
-    filesystem->get_entries = (fn_root_get_entries)fat32_get_root_entries;
+
+    filesystem->root_dir.name[0] = '/';
+    filesystem->root_dir.name[1] = 0;
+    filesystem->root_dir.userdata2 = pvolume->root_cluster;
+    filesystem->root_dir.type = ENTRY_DIRECTORY;
+    filesystem->root_dir.fs = filesystem;
+    filesystem->root_dir.get_entries = fat32_fs_get_dir_entries;
+
     return filesystem;
 }
 
@@ -787,4 +663,96 @@ struct drive_fs_t *fat32_drive_close(struct drive_fs_t *fs)
 {
     (void)fs;
     return NULL;
+}
+
+static size_t fat32_inode_read(struct vfs_inode* inode,
+                               uint32_t offset, size_t len, uint8_t *buf)
+{
+
+    FAT32_Volume *pvol   = (FAT32_Volume *)((struct drive_fs_t*)inode->fs->reserved)->userdata1;
+    size_t cluster_size  = (size_t)pvol->bpb.bytes_per_sector *
+                           pvol->bpb.sectors_per_cluster;
+    uint32_t current_cluster = (uint32_t)inode->ino;
+
+    // Skip clusters to reach the requested offset
+    uint32_t clusters_to_skip = (uint32_t)(0 / cluster_size);
+    size_t   cluster_offset   = offset % cluster_size;
+    for (uint32_t i = 0; i < clusters_to_skip; i++) {
+        current_cluster = fat32_next_cluster(inode->fs->reserved, pvol, current_cluster);
+        if (current_cluster >= FAT32_CLUSTER_BAD) return 0;
+    }
+
+    size_t bytes_read = 0;
+    while (bytes_read < len) {
+        if (current_cluster < 2 || current_cluster >= FAT32_CLUSTER_BAD) break;
+
+        uint32_t lba              = cluster_to_lba(pvol, current_cluster);
+        size_t   offset_in_cluster = cluster_offset;
+        int32_t  bytes_in_cluster  = (int32_t)(cluster_size - cluster_offset);
+        uint32_t to_copy = (uint32_t)(len - bytes_read);
+        if ((int32_t)to_copy > bytes_in_cluster)
+            to_copy = (uint32_t)bytes_in_cluster;
+
+        while (to_copy > 0) {
+            uint32_t sector_index  = (uint32_t)(offset_in_cluster / ((struct drive_fs_t*)inode->fs->reserved)->drive->sector_size);
+            uint32_t offset_in_sec = (uint32_t)(offset_in_cluster % ((struct drive_fs_t*)inode->fs->reserved)->drive->sector_size);
+            uint32_t avail         = ((struct drive_fs_t*)inode->fs->reserved)->drive->sector_size - offset_in_sec;
+            uint32_t chunk         = to_copy < avail ? to_copy : avail;
+
+            if (((struct drive_fs_t*)inode->fs->reserved)->drive->read((void*)((struct drive_fs_t*)inode->fs->reserved)->drive, lba + sector_index, 1,
+                                   sector_buf) < 0)
+                return bytes_read > 0 ? bytes_read : (size_t)-1;
+
+            memcpy(buf + bytes_read, sector_buf + offset_in_sec, chunk);
+            bytes_read        += chunk;
+            offset_in_cluster += chunk;
+            to_copy           -= chunk;
+        }
+
+        cluster_offset = offset_in_cluster;
+        if (cluster_offset >= cluster_size) {
+            cluster_offset  = 0;
+            current_cluster = fat32_next_cluster(inode->fs->reserved, pvol, current_cluster);
+        }
+    }
+    return bytes_read;
+}
+
+int fat32_vfs_read_file(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t count) {
+    if (!inode || inode->mode != VFS_FILE) return -1;
+
+    return fat32_inode_read(inode, offset, count, buffer);
+}
+
+int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode* buffer) {
+    if (!inode || !buffer || !name) return -1;
+    // for(;;);
+
+    struct fs_entries_t entries = fat32_get_dir_entries(inode->fs->reserved, inode->ino);
+
+    for (int i = 0; i < entries.count; i++) {
+        if (strcasecmp(name, entries.entries[i].file.name) == 0) {
+            buffer->fs = inode->fs;
+            buffer->mode = entries.entries[i].type;
+            buffer->ops = vfs_ops[VFS_OPS_FAT32];
+            buffer->reserved = &entries.entries[i];
+            if (buffer->mode == VFS_FILE) {
+                buffer->size = entries.entries[i].file.file_size;
+                buffer->ino = entries.entries[i].file.userdata2;
+            } else if (buffer->mode == VFS_DIR) {
+                buffer->size = 0;
+                buffer->ino = entries.entries[i].dir.userdata2;
+            }
+
+            return 1;
+        }
+    }
+
+    return -1;
+}
+
+int fat32_vfs_write_file(struct vfs_inode* inode,
+                      size_t offset, const uint8_t *content, size_t len)
+{
+    return fat32_file_write(inode->reserved, offset, len, content);
 }

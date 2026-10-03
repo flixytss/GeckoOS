@@ -1,7 +1,7 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include "drivers/tables/isr.h"
+#include "arch/x86_64/isr.h"
 #include "stdint.h"
 
 #define MOUSE_CMD_RESET                    0xFF

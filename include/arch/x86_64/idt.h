@@ -2,7 +2,7 @@
 #define _IDT_H
 
 #include <stdint.h>
-#include <drivers/tables/isr.h>
+#include <arch/x86_64/isr.h>
 
 struct idt_entry_struct
 {

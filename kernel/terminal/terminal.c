@@ -1,4 +1,5 @@
 #include "drivers/hid/keyboard.h"
+#include "drivers/vga.h"
 #include "terminal/printf.h"
 #include <drivers/framebuffer.h>
 #include <drivers/ps2keyboard.h>
@@ -181,13 +182,6 @@ void printc(char *data, uint8_t COLOR)
     }
 }
 
-void kprintf(int severity, char *data, ...)
-{
-    for (size_t i = 0; data[i]; i++) {
-        putchar(data[i], VGA_COLOR_WHITE);
-    }
-}
-
 void print(char *data)
 {
     for (size_t i = 0; data[i]; i++) {
@@ -278,11 +272,9 @@ void input(unsigned char *buff, size_t buffer_size, uint8_t color)
     unsigned char saved_input[512];
 
     while (true) {
-        scancode_t sc = get_scancode();
+        scancode_t sc = hid_wfi();
 
         if (sc & 0x80)
-            continue;
-        if (sc == 0)
             continue;
 
         if (sc == KEY_UP || sc == KEY_DOWN) {

@@ -1,6 +1,6 @@
 #include <drivers/e1000.h>
 #include <drivers/pci.h>
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/irq.h>
 #include <mem/paging.h>
 #include <mem/physical_mem.h>
 #include <mem.h>
@@ -98,7 +98,7 @@ static void tx_init(void) {
 
 static volatile int rx_pending = 0;
 
-__attribute__((interrupt)) static void e1000_irq_handler(registers_t *regs) {
+static void e1000_irq_handler(registers_t *regs) {
     (void)regs;
     uint32_t icr = e1000_read(E1000_ICR);
 

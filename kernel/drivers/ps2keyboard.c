@@ -5,7 +5,7 @@
 #include "drivers/input.h"
 #include "drivers/ps2.h"
 #include <drivers/ps2keyboard.h>
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/irq.h>
 #include <drivers/vga.h>
 #include <layouts/kb_layouts.h>
 #include <ports.h>

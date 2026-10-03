@@ -1,5 +1,5 @@
 #pragma once
-#include "drivers/tables/isr.h"
+#include "arch/x86_64/isr.h"
 #include <stdbool.h>
 #include <stdint.h>
 

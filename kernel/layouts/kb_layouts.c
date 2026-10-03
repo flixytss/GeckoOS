@@ -1,7 +1,8 @@
 // Added by MorganPG1 to make implementation of https://github.com/Ember2819/Random-People-Coding-Stuff/issues/32 easier
 #include <layouts/kb_layouts.h>
 #include <stdint.h>
-#include <string.h>
+#include "terminal/printf.h"
+#include "mem.h"
 
 KeyboardLayout PS2_LAYOUTS[] = {
     { // US QWERTY

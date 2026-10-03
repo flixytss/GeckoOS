@@ -2,12 +2,11 @@
 #include "boot/multiboot2.h"
 #include "drivers/vga.h"
 #include "mem/paging.h"
-#include "string.h"
 #include "terminal/terminal.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <terminal/printf.h>
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/irq.h>
 #include <drivers/pit.h>
 
 struct madt_iso isos[32];

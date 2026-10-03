@@ -17,12 +17,14 @@ struct kdrive_t
 	char sysname[16];
 
 	uint32_t sector_size;
-	uint32_t userdata1;
+	uint64_t userdata1;
 	uint32_t userdata2;
 
 	struct partition_table_t partitions;
 	kdrive_read_sectors read;
 	kdrive_write_sectors write;
+
+	struct drive_fs_t* fs;
 };
 
 void register_kdrive( struct kdrive_t drive );

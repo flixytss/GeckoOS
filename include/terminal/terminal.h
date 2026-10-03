@@ -33,7 +33,6 @@ void terminal_init();
 void putchar(char c, uint8_t COLOR);
 void write(char *data, size_t size, uint8_t COLOR);
 void printc(char *data, uint8_t COLOR);
-void kprintf(int severity, char *data, ...);
 void print(char *data);
 void print_int(int n);
 void print_hex(uint32_t n);

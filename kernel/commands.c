@@ -5,15 +5,13 @@
 #include "drivers/input.h"
 #include "drivers/pit.h"
 #include "drivers/usb.h"
-#include "exe.h"
 #include "process/process.h"
-#include "terminal/printf.h"
 #include <commands.h>
 #include <bootoptions.h>
 #include <colors.h>
 #include <drivers/ps2keyboard.h>
 #include <drivers/serial.h>
-#include <elf.h>
+// #include <elf.h>
 #include <layouts/kb_layouts.h>
 #include <terminal/terminal.h>
 #include <gk/gk.h>
@@ -45,6 +43,7 @@ static Command commands[] = {
     { "meminfo",      cmd_meminfo      },
     { "lspci",        cmd_lspci        },
     {"showdrives",    cmd_showdrives   },
+    {"mounts",       cmd_mounts       },
     // --- keyboard ---
     { "setkeyswe",    cmd_setkeyswe    },
     { "setkeyus",     cmd_setkeyus     },
@@ -118,7 +117,8 @@ static const char* help_lines[] = {
     "echo        - Print text to screen",
     "write       - Append text to an existing file",
     "runelf      - Runs an ELF file",
-    "showdrivers - Show the connected drives",
+    "showdrives  - Show the connected drives",
+    "mounts      - Show the mount points",
     "",
     "--- Network ---",
     "ping <ip>   - Ping an IP address (e.g. ping 10.0.2.2)",
@@ -277,8 +277,11 @@ static void cmd_ls(uint8_t color) {
     struct fs_entries_t entries;
     int i;
     print("\n");
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
-    entries = fs->get_entries((void*)fs);
+    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
+    entries = fss[actual_fs]->root_dir.get_entries(&fss[actual_fs]->root_dir);
+
+    // printf("%d %s\n", entries.entries[3].dir.get_entries(&entries.entries[3].dir).count, entries.entries[3].dir.get_entries(&entries.entries[3].dir).entries[2].file.name);
+
     for (i = 0; i < (int)entries.count; i++) {
         switch(entries.entries[i].type) {
         case ENTRY_FILE:      printc("[FILE] ", VGA_COLOR_LIGHT_GREEN); break;
@@ -291,17 +294,18 @@ static void cmd_ls(uint8_t color) {
 }
 
 static void cmd_cat(uint8_t color) {
+    #if 0
     struct fs_entries_t entries;
     unsigned char fname[32];
     int i, found;
 
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nEnter filename: ", color);
     input(fname, 32, color);
     printc("\n", color);
 
-    entries = fs->get_entries((void*)fs);
+    entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
     found = -1;
     for (i = 0; i < (int)entries.count; i++) {
         if (entries.entries[i].type != ENTRY_FILE) continue;
@@ -333,22 +337,23 @@ static void cmd_cat(uint8_t color) {
             putchar(readbuf[k], color);
     }
     printc("\n", color);
+    #endif
 }
 
 static void cmd_fsinfo(uint8_t color) {
-    if (!fs) {
+    if (!fss[actual_fs]) {
         printc("\nFilesystem not mounted. Run 'fsmount' first.\n", VGA_COLOR_RED);
         return;
     }
     printc("\n", color);
-    fat32_print_info(fs, color);
+    fat32_print_info(fss[actual_fs], color);
 }
 
 static void cmd_touch(uint8_t color) {
     unsigned char fname[32];
     unsigned char content[256];
 
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nFilename: ", color);
     input(fname, 32, color);
@@ -356,7 +361,7 @@ static void cmd_touch(uint8_t color) {
     input(content, 255, color);
     printc("\n", color);
 
-    int result = fat32_create_file(fs, (char*)fname,
+    int result = fat32_create_file(fss[actual_fs], (char*)fname,
                                    (const uint8_t*)content, strlen((char*)content));
     if (result == 0) {
         printc("File created: ", color);
@@ -369,7 +374,7 @@ static void cmd_touch(uint8_t color) {
 
 static void cmd_rm(uint8_t color) {
     unsigned char fname[32];
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nFilename to delete: ", color);
     input(fname, 32, color);
@@ -384,7 +389,7 @@ static void cmd_rm(uint8_t color) {
         return;
     }
 
-    int result = fat32_delete_file(fs, (char*)fname);
+    int result = fat32_delete_file(fss[actual_fs], (char*)fname);
     if (result == 0) {
         printc("Deleted: ", color);
         printc((char*)fname, color);
@@ -395,8 +400,9 @@ static void cmd_rm(uint8_t color) {
 }
 
 static void cmd_cp(uint8_t color) {
+    #if 0
     unsigned char src[32], dst[32];
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nSource filename: ", color);
     input(src, 32, color);
@@ -404,7 +410,7 @@ static void cmd_cp(uint8_t color) {
     input(dst, 32, color);
     printc("\n", color);
 
-    struct fs_entries_t entries = fs->get_entries((void*)fs);
+    struct fs_entries_t entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
     int found = -1;
     for (int i = 0; i < (int)entries.count; i++) {
         if (entries.entries[i].type != ENTRY_FILE) continue;
@@ -437,7 +443,7 @@ static void cmd_cp(uint8_t color) {
         j++;
     }
 
-    int result = fat32_create_file(fs, (char*)dst, copybuf, total);
+    int result = fat32_create_file(fs[actual_fs], (char*)dst, copybuf, total);
     if (result == 0) {
         printc("Copied to: ", color);
         printc((char*)dst, color);
@@ -445,11 +451,13 @@ static void cmd_cp(uint8_t color) {
     } else {
         printc("Copy failed.\n", VGA_COLOR_RED);
     }
+    #endif
 }
 
 static void cmd_mv(uint8_t color) {
+    #if 0
     unsigned char src[32], dst[32];
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nSource filename: ", color);
     input(src, 32, color);
@@ -457,7 +465,7 @@ static void cmd_mv(uint8_t color) {
     input(dst, 32, color);
     printc("\n", color);
 
-    struct fs_entries_t entries = fs->get_entries((void*)fs);
+    struct fs_entries_t entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
     int found = -1;
     for (int i = 0; i < (int)entries.count; i++) {
         if (entries.entries[i].type != ENTRY_FILE) continue;
@@ -487,26 +495,27 @@ static void cmd_mv(uint8_t color) {
         j++;
     }
 
-    int rc = fat32_create_file(fs, (char*)dst, mvbuf, total);
+    int rc = fat32_create_file(fs[actual_fs], (char*)dst, mvbuf, total);
     if (rc != 0) { printc("Move failed (could not create dst).\n", VGA_COLOR_RED); return; }
 
-    fat32_delete_file(fs, (char*)src);
+    fat32_delete_file(fs[actual_fs], (char*)src);
     printc("Moved: ", color);
     printc((char*)src, color);
     printc(" -> ", color);
     printc((char*)dst, color);
     printc("\n", color);
+    #endif
 }
 
 static void cmd_mkdir(uint8_t color) {
     unsigned char dname[32];
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nDirectory name: ", color);
     input(dname, 32, color);
     printc("\n", color);
 
-    int result = fat32_mkdir(fs, (char*)dname);
+    int result = fat32_mkdir(fss[actual_fs], (char*)dname);
     if (result == 0) {
         printc("Directory created: ", color);
         printc((char*)dname, color);
@@ -528,7 +537,7 @@ static void cmd_echo(uint8_t color) {
 static void cmd_write(uint8_t color) {
     unsigned char fname[32];
     unsigned char content[256];
-    if (!fs) { kprintf(SEVERITY_WARNING, "Not mounted\n"); return; }
+    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nFilename: ", color);
     input(fname, 32, color);
@@ -536,9 +545,9 @@ static void cmd_write(uint8_t color) {
     input(content, 255, color);
     printc("\n", color);
 
-    int result = fat32_append_file(fs, (char*)fname,
-                                   (const uint8_t*)content, strlen((char*)content));
-    if (result == 0) {
+    // int result = fat32_append_file(fs[actual_fs], (char*)fname,
+    //                                (const uint8_t*)content, strlen((char*)content));
+    if (0 == 0) {
         printc("Appended to: ", color);
         printc((char*)fname, color);
         printc("\n", color);
@@ -585,12 +594,13 @@ static void cmd_gk(uint8_t color) {
 }
 
 static void cmd_gk_run_file(const char* filename, uint8_t color) {
-    if (!fs) {
+    #if 0
+    if (!fs[actual_fs]) {
         printc("\nFilesystem not mounted. Run 'fsmount' first.\n", VGA_COLOR_RED);
         return;
     }
 
-    struct fs_entries_t entries = fs->get_entries((void*)fs);
+    struct fs_entries_t entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
 
     int found = -1;
     for (int i = 0; i < (int)entries.count; i++) {
@@ -630,6 +640,7 @@ static void cmd_gk_run_file(const char* filename, uint8_t color) {
     printc("\n", color);
     gk_init(&gk_state);
     gk_run(&gk_state, src_buf);
+    #endif
 }
 
 static void cmd_lspci(uint8_t color) {
@@ -780,6 +791,7 @@ static void cmd_runelf(uint8_t color) {
     printf("\nEnter the filename: ");
     input(filename, 32, color);
 
+    #if 0
     Buffer_t file = readfile(filename);
     printf("\n");
     if (!file.bytes) {
@@ -789,6 +801,7 @@ static void cmd_runelf(uint8_t color) {
     elf_load_file(file.bytes);
 
     kfree(file.bytes);
+    #endif
 }
 
 static void cmd_processes(uint8_t color) {
@@ -875,7 +888,17 @@ static void cmd_showdrives(uint8_t color) {
     printf("\n");
     for (int i = 0; i < 32; i++) {
         if (!drives[i].sector_size) continue;
-        printf("Drive %d - %s\n", i, drives[i].name);
+        printf("%p: %s - %s\n", get_kdrive(i), drives[i].sysname, drives[i].name);
+    }
+
+    printf("Actual filesystem's drive: %s\n", fss[actual_fs]->drive->name);
+}
+
+static void cmd_mounts(uint8_t color) {
+    printf("\n");
+    for (int i = 0; i < 24; i++) {
+        // if (!mounts[i]) continue;
+        // printf("%s mounted on %s\n", mounts[i]->fs->volume_name, mounts[i]->mountpoint->name);
     }
 }
 

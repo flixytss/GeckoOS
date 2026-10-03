@@ -1,6 +1,6 @@
 #pragma once
 
-#include "drivers/tables/isr.h"
+#include "arch/x86_64/isr.h"
 #include <stdint.h>
 
 struct acpi_rsdp_v1 {

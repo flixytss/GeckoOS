@@ -1,11 +1,9 @@
 #include "boot/multiboot2.h"
 #include "drivers/acpi.h"
 #include "drivers/apic/lapic.h"
-#include "drivers/ide.h"
 #include "drivers/ps2.h"
-#include "drivers/tables/isr.h"
+#include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
-#include "drivers/usb.h"
 #include "mem.h"
 #include "ports.h"
 #include "terminal/printf.h"
@@ -15,8 +13,8 @@
 #include <drivers/drives.h>
 #include <drivers/pci.h>
 #include <drivers/serial.h>
-#include <drivers/tables/idt.h>
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/idt.h>
+#include <arch/x86_64/irq.h>
 #include <drivers/vga.h>
 #include <layouts/kb_layouts.h>
 #include <mem/paging.h>
@@ -28,9 +26,10 @@
 #include <terminal/terminal.h>
 #include <fs/fs.h>
 #include <drivers/hid/keyboard.h>
+#include <fs/vfs.h>
 // I think all of these includes are useless, they are there because someone (me) forgot to delete them after finishing them
 
-#define GECKO_VERSION "2.2"
+#define GECKO_VERSION "2.3"
 
 void process_input(unsigned char *buffer) {
     run_command(buffer, TERM_COLOR);
@@ -68,7 +67,7 @@ void _entry(uint64_t mbi) {
 
     has_apic = cpu_has_apic();
 
-    int ret = acpi_init(); // This activates the PIT timer if the is a interrupt source override with the irq of the PIT timer
+    int ret = acpi_init();
     if (ret != 0) {
         set_printf_color(VGA_COLOR_RED);
             printf("initializing apic failed: %d \n", ret);
@@ -104,6 +103,7 @@ void _entry(uint64_t mbi) {
     // hardware init
     printc("Enabling hardware devices...\n", VGA_COLOR_LIGHT_GREY);
     // basic stuff
+    vfs_init();
     terminal_init();
     register_interrupt_handler(0x6, ud_exception_handler);
 
@@ -138,11 +138,17 @@ void _entry(uint64_t mbi) {
 }
 
 void kmain() {
-    for (int i = 1; i < 5; i++) {
-        printf("Trying drive %d", i);
-        if (fsmount(i)) break;
-    } if (!fs)
-        printc("The drives 1 - 4 don't have any disk attached (Or it failed when mounting the FAT32 filesystem)\n\n", VGA_COLOR_RED);
+    for (int i = 0; i < (sizeof(drives) / sizeof(drives[0])); i++) {
+        if (!drives[i].sector_size) continue;
+        if (fsmount(i) == 1) break;
+    }
+
+    vfs_add(fss[0]);
+    
+    struct vfs_inode here;
+    // printf("%d\n", vfs_lookup_path("/dildos/bigones", &here));
+
+    // print_irqs(11);
 
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

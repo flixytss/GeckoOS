@@ -1,6 +1,6 @@
 #include "drivers/pit.h"
 #include "ports.h"
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/irq.h>
 #include <stdint.h>
 #include <terminal/printf.h>
 #include <drivers/acpi.h>

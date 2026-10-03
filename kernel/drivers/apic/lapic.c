@@ -1,6 +1,6 @@
 #include "drivers/apic/lapic.h"
 #include "drivers/acpi.h"
-#include "drivers/tables/irq.h"
+#include "arch/x86_64/irq.h"
 #include "mem/paging.h"
 #include "mem/physical_mem.h"
 #include "ports.h"

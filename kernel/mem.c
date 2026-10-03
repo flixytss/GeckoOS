@@ -35,7 +35,129 @@ int strlen(char *ptr) {
         i++;
     return i;
 }
+uint8_t strcmp(const char *s, const char *d) {
+    while (*s == *d && *s)
+        s++, d++;
+    return *(uint8_t *)s - *(uint8_t *)d;
+}
+uint8_t strcasecmp(const char* a, const char* b) {
+    while (*a && *b) {
+        char ca = *a;
+        char cb = *b;
+
+        if (ca >= 'A' && ca <= 'Z')
+            ca += 'a' - 'A';
+
+        if (cb >= 'A' && cb <= 'Z')
+            cb += 'a' - 'A';
+
+        if (ca != cb)
+            return ca - cb;
+
+        a++;
+        b++;
+    }
+
+    return *a - *b;
+}
+
+uint8_t dlim(char c, const char *delim) {
+    while (*delim) {
+        if (c == *delim)
+            return 1;
+        delim++;
+    }
+    return 0;
+}
+
+char *strtok_r(char *restrict str, const char *restrict delim, char **saveptr) {
+    char  *start;
+    char **next = saveptr;
+
+    if (str != NULL)
+        *next = str;
+    if (!next || !*next)
+        return NULL;
+
+    while (**next && dlim(**next, delim))
+        (*next)++;
+
+    if (**next == '\0') {
+        *next = NULL;
+        return NULL;
+    }
+
+    start = *next;
+
+    while (**next && !dlim(**next, delim))
+        (*next)++;
+
+    if (**next) {
+        **next = '\0';
+        (*next)++;
+    } else {
+        *next = NULL;
+    }
+
+    return start;
+}
+
+uint8_t strncmp(const char *s1, const char *s2, size_t siz) {
+    while (siz && *s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+        siz--;
+    }
+
+    if (siz == 0)
+        return 0;
+
+    return *(uint8_t *)s1 - *(uint8_t *)s2;
+}
+
+char *strtok(char *restrict str, const char *restrict delim) {
+    static char *saveptr;
+    return strtok_r(str, delim, &saveptr);
+}
  
+
+void strncpy(char *restrict dst, const char *restrict src, size_t siz) {
+    while (siz--) {
+        *dst++ = *src++;
+    }
+}
+
+void strcpy(char *restrict dst, const char *restrict src) {
+    while ((*dst++ = *src++));
+}
+
+char *strchr(const char *s, int c) {
+    while(*s) {
+        if(*s == c) break;
+        s++;
+    }
+    return (char *)s;
+}
+
+char *strrchr(const char *s, int c) {
+    const char *l = NULL;
+    while (*s) {
+        if (*s == (char)c)
+            l = s;
+        s++;
+    }
+    if (!c)
+        return (char *)s;
+    return (char *)l;
+}
+
+char* strdup(const char* str) {
+    uint64_t s = strlen(str);
+    char* ret = kmalloc(s);
+    memcpy(ret, str, s);
+    return ret;
+}
+
 // replace with real allocator later but should be fine for now
 // kotofyt: it is not
 // pumpkicks: is this enough?
@@ -111,6 +233,17 @@ void *kmalloc(unsigned long size) {
     block* b = create_block(size, 1);
 
     return b ? (void *)(BLOCK_BUFFER(b)) : NULL;
+}
+void* realloc(void* p, size_t size) {
+    if (!p) return NULL;
+    block* b = (block*)BLOCK_BUFFER_METADATA(p);
+
+    b->free = true;
+    char* new = kmalloc(size);
+
+    memcpy(new, p, size > b->size ? b->size : size);
+
+    return b;
 }
 void *kmalloc_align(unsigned long size, size_t alignment) {
     size = ALIGN8(size);

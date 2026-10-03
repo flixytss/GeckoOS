@@ -1,9 +1,5 @@
 #include "drivers/drives.h"
-#include "drivers/pci.h"
 #include "drivers/pit.h"
-#include "drivers/tables/irq.h"
-#include "drivers/tables/isr.h"
-#include "mem.h"
 #include "ports.h"
 #include <drivers/ide.h>
 #include <stdint.h>
@@ -178,13 +174,12 @@ void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned 
 
             // (II) Send ATA Identify Command:
             ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY);
-            pit_timer_wait_ms(1); // This function should be implemented in your OS. which waits for 1 ms.
-                    // it is based on System Timer Device Driver.
+            pit_timer_wait_ms(1);
 
             // (III) Polling:
             if (ide_read(i, ATA_REG_STATUS) == 0) continue; // If Status = 0, No Device.
 
-            while(1) {
+            while (1) {
                 status = ide_read(i, ATA_REG_STATUS);
                 if ((status & ATA_SR_ERR)) {err = 1; break;} // If Err, Device is not ATA.
                 if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break; // Everything is right.
@@ -196,21 +191,16 @@ void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned 
                 unsigned char cl = ide_read(i, ATA_REG_LBA1);
                 unsigned char ch = ide_read(i, ATA_REG_LBA2);
 
-                if (cl == 0x14 && ch == 0xEB)
-                type = IDE_ATAPI;
-                else if (cl == 0x69 && ch == 0x96)
-                type = IDE_ATAPI;
-                else
-                continue; // Unknown Type (may not be a device).
+                if (cl == 0x14 && ch == 0xEB) type = IDE_ATAPI;
+                else if (cl == 0x69 && ch == 0x96) type = IDE_ATAPI;
+                else continue; // Unknown Type (may not be a device).
 
                 ide_write(i, ATA_REG_COMMAND, ATA_CMD_IDENTIFY_PACKET);
                 pit_timer_wait_ms(1);
             }
 
-            // (V) Read Identification Space of the Device:
             ide_read_buffer(i, ATA_REG_DATA, (unsigned int) ide_buf, 128);
 
-            // (VI) Read Device Parameters:
             ide_devices[count].Reserved     = 1;
             ide_devices[count].Type         = type;
             ide_devices[count].Channel      = i;
@@ -219,7 +209,6 @@ void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned 
             ide_devices[count].Capabilities = *((unsigned short *)(ide_buf + ATA_IDENT_CAPABILITIES));
             ide_devices[count].CommandSets  = *((unsigned int *)(ide_buf + ATA_IDENT_COMMANDSETS));
 
-            // (VII) Get Size:
             if (ide_devices[count].CommandSets & (1 << 26))
                 // Device uses 48-Bit Addressing:
                 ide_devices[count].Size   = *((unsigned int *)(ide_buf + ATA_IDENT_MAX_LBA_EXT));
@@ -227,7 +216,6 @@ void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned 
                 // Device uses CHS or 28-bit Addressing:
                 ide_devices[count].Size   = *((unsigned int *)(ide_buf + ATA_IDENT_MAX_LBA));
 
-            // (VIII) String indicates model of device (like Western Digital HDD and SONY DVD-RW...):
             memset(ide_devices[count].Model, 0, sizeof(ide_devices[count].Model));
             for(k = 0; k < 40; k += 2) {
                 ide_devices[count].Model[k] = ide_buf[ATA_IDENT_MODEL + k + 1];
@@ -261,6 +249,13 @@ void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned 
                     ide_devices[i].Model);
             #endif
         }
+}
+static void ide_sleep(unsigned char drive) {
+    ide_write(ide_devices[drive].Channel, ATA_REG_HDDEVSEL, 0xA0 | (ide_devices[drive].Drive << 4));
+    pit_timer_wait_ms(1);
+
+    ide_write(ide_devices[drive].Channel, ATA_REG_COMMAND, ATA_CMD_SLEEP);
+    pit_timer_wait_ms(1); // Wait 1ms for drive select to work.
 }
 
 unsigned char ide_ata_access(unsigned char direction, unsigned char drive, unsigned int lba, unsigned char numsects, unsigned short selector, unsigned int edi) {
@@ -376,7 +371,7 @@ unsigned char ide_ata_access(unsigned char direction, unsigned char drive, unsig
             ide_polling(channel, 0); // Polling.
         }
 
-    return 0; // Easy, isn't it?
+    return numsects; // Easy, isn't it?
 }
 
 void ide_wait_irq() {
@@ -475,7 +470,6 @@ void ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int 
                 err = ide_atapi_read(drive, lba + i, 1, es, edi + (i*2048));
         package[0] = ide_print_error(drive, err);
     }
-    printf("%d\n", package[0]);
 }
 // package[0] is an entry of an array. It contains the Error Code.
 

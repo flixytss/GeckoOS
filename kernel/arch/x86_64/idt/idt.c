@@ -1,9 +1,9 @@
 #include <colors.h>
-#include <drivers/tables/idt.h>
+#include <arch/x86_64/idt.h>
 #include <mem.h>
 #include <ports.h>
 #include <terminal/terminal.h>
-#include <drivers/tables/irq.h>
+#include <arch/x86_64/irq.h>
 
 idt_entry_t idt_entries[256];
 idt_ptr_t   idt_ptr;

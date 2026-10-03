@@ -36,6 +36,7 @@ static block* create_block(unsigned long size, size_t alignment);
 
 void kalloc_init(uint64_t start, uint64_t size);
 void* kmalloc(unsigned long size);
+void* realloc(void* p, size_t size);
 void* kmalloc_align(unsigned long size, size_t alignment);
 
 void dump_heap();
@@ -44,6 +45,17 @@ void kfree(void* p);
 void combine_blocks();
 //Pumpkicks
 int strlen(char* ptr);
+uint8_t strncmp(const char *s1, const char *s2, size_t siz);
+uint8_t strcmp(const char *s, const char *d);
+uint8_t strcasecmp(const char *s, const char *d);
+uint8_t dlim(char c, const char *delim);
+char *strtok_r(char *restrict str, const char *restrict delim, char **saveptr);
+char *strtok(char *restrict str, const char *restrict delim);
+void strncpy(char *restrict dst, const char *restrict src, size_t siz);
+void strcpy(char *restrict dst, const char *restrict src);
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+char* strdup(const char* str);
 
 // these are defined in <stddef.h>
 /*

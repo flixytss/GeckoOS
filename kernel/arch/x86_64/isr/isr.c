@@ -1,4 +1,4 @@
-#include <drivers/tables/isr.h>
+#include <arch/x86_64/isr.h>
 #include <stdint.h>
 #include <terminal/printf.h>
 
@@ -12,7 +12,7 @@ void ud_exception_handler(registers_t* regs) {
         "jmpq *%%rax"
         : : "r"((uint64_t)kmain) // Everything will be slow for some reason
     );
-    for(;;)asm volatile("hlt");
+    for(;;) asm volatile("hlt");
 }
 
 void register_interrupt_handler(uint8_t n, isr_t handler) {
@@ -51,9 +51,9 @@ void isr_handler(registers_t *regs) {
         handler(regs);
     } else {
         char check = regs->int_no > 21;
-        printf("The interruption 0x%x dosen't has a designed handler!%s%s\n", regs->int_no,
-            check > 21 ? "" : " But that interruption has an error string: ",
-            check > 21 ? "" : interrupt_string_table[regs->int_no]);     
+        printf("INTERRUPTION int_no=%d err_code=%d %s\n", regs->int_no, regs->err_code,
+            check > 21 ? "" : interrupt_string_table[regs->int_no]);
+
     }
     // for (;;);
 }

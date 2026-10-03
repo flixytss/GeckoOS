@@ -26,9 +26,9 @@ typedef struct drive_dir_t *(*fn_get_root_entry)(struct drive_fs_t *);
 
 enum drive_entry_type_t
 {
-	ENTRY_FILE,
-	ENTRY_DIRECTORY,
-	ENTRY_LINK,
+	ENTRY_FILE = 2,
+	ENTRY_DIRECTORY = 1,
+	ENTRY_LINK = 3,
 };
 
 struct drive_file_t
@@ -36,28 +36,25 @@ struct drive_file_t
 	enum drive_entry_type_t type;
 	char name[FILENAME_MAX];
 	struct drive_fs_t *fs;
-	struct kdrive_t *drive;
 	size_t file_size;
 	void *userdata1;
 	size_t userdata2;
 	size_t userdata3;
 	size_t userdata4;
-	fn_df_read read;
-	fn_df_write write;
-	fn_df_truncate truncate;
 };
+
+typedef struct fs_entries_t (*fs_get_dir_entries_t)(struct drive_dir_t*);
 
 struct drive_dir_t
 {
 	enum drive_entry_type_t type;
 	char name[FILENAME_MAX];
 	struct drive_fs_t *fs;
-	struct kdrive_t *drive;
 	void *userdata1;
 	size_t userdata2;
 	size_t userdata3;
 	size_t userdata4;
-	fn_get_entries get_entries;
+	fs_get_dir_entries_t get_entries;
 };
 
 typedef union drive_entry_t
@@ -79,16 +76,17 @@ struct drive_fs_t
 	struct kdrive_t *drive;
 	void *userdata1;
 	size_t userdata2;
-	fn_root_get_entries get_entries;
+	struct drive_dir_t root_dir;
 };
 
-struct drive_fs_t *fs_drive_open( struct kdrive_t *drive );
-struct drive_fs_t *fs_partition_open( struct kdrive_t *drive, struct partition_t *partition );
+struct drive_fs_t *fs_drive_open( struct kdrive_t *drive, struct drive_fs_t* fs );
+struct drive_fs_t *fs_partition_open( struct kdrive_t *drive, struct partition_t *partition, struct drive_fs_t* fs );
 void fs_free_entries( struct fs_entries_t *entries );
 
 Buffer_t readfile(unsigned char* fname);
 int fsmount(int drive);
 
-extern struct drive_fs_t *fs;
+extern struct drive_fs_t* fss[16];
+extern int actual_fs;
 
 #endif

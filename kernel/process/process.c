@@ -6,7 +6,7 @@
 #include <mem/paging.h>
 #include <ports.h>
 #include <stdint.h>
-#include <drivers/tables/isr.h>
+#include <arch/x86_64/isr.h>
 #include <drivers/vga.h>
 #include <terminal/printf.h>
 #include <drivers/framebuffer.h>

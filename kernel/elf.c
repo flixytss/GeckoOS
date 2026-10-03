@@ -2,7 +2,7 @@
 #include "process/process.h"
 #include <stdbool.h>
 #include <stddef.h>
-#include <elf.h>
+#include "elf.h"
 #include <commands.h>
 #include <stdint.h>
 #include <terminal/printf.h>

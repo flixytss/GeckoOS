@@ -47,7 +47,6 @@ struct KeyboardReport* HIDKeyboardInit(struct USBDevice* usb) {
     return usb->data.user_data;
 }
 
-// only one keyboard supported because of this
 bool hid_kbs_ready[16];
 
 void ManageKeyboardReport(struct USBDevice device) {
@@ -82,12 +81,15 @@ void ManageKeyboardReport(struct USBDevice device) {
     }
 }
 scancode_t hid_wfi() {
-    for (int i = 0; i < 16; i++) {
-        if (hid_kbs_ready[i]) {
-            hid_kbs_ready[i] = 0;
-            return last_scancode;
-        }
+    while (1) {
+        for (int i = 0; i < 16; i++) {
+            if (hid_kbs_ready[i]) {
+                hid_kbs_ready[i] = 0;
+                return last_scancode;
+            }
 
-        pit_timer_wait_ms(5);
-    } return 0;
+            pit_timer_wait_ms(10);
+        }
+    }
+    return 0;
 }
