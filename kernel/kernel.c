@@ -124,23 +124,26 @@ __attribute__((section(".text.entry"))) void _entry(uint64_t mbi) {
 }
 
 void kmain() {
-    for (int i = 0; i < (sizeof(drives) / sizeof(drives[0])); i++) {
-        if (!drives[i].sector_size) continue;
-        fsmount(i);
+    int last_drive;
+    for (last_drive = 0; last_drive < (sizeof(drives) / sizeof(drives[0])); last_drive++) {
+        if (!drives[last_drive].sector_size) continue;
+        fsmount(last_drive);
     }
 
-    // Adds the first drive's filesystem to the virtual filesystems array
-    vfs_add(fss[0]);
+    if (fss[last_drive]) {
+        // Adds the first drive's filesystem to the virtual filesystems array
+        vfs_add(fss[0]);
 
-    // Adds the devfs to the virtual filesystems array
-    vfs_devfs_init();
-    vfs_add_vfs(create_devfs());
+        // Adds the devfs to the virtual filesystems array
+        vfs_devfs_init();
+        vfs_add_vfs(create_devfs());
 
-    // Set the first virtual filesystem as the root one
-    vfs_set_root_(get_vfs_(0));
+        // Set the first virtual filesystem as the root one
+        vfs_set_root_(get_vfs_(0));
 
-    vfs_mkdir_path("/dev");
-    vfs_mount("/dev", get_vfs_(1));
+        vfs_mkdir_path("/dev");
+        vfs_mount("/dev", get_vfs_(1));
+    }
 
     // vfs_mkdir_path("/dev/dir1");
     // vfs_mkdir_path("/dev/dir2");

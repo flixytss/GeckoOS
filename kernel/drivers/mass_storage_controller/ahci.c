@@ -11,7 +11,7 @@ void ahci_init(struct PCIDevice device) {
     if (!Abar) goto err;
 
     uint8_t* registers_address = (uint8_t*)((uint64_t)Abar & ~0xF); // 16-byte aligned address
-    vmm_map(vmm_get_pml4(), (uint64_t)registers_address, (uint64_t)registers_address, PTE_PRESENT | PTE_WRITABLE | PTE_CACHE_DISABLE);
+    // vmm_map(vmm_get_pml4(), (uint64_t)registers_address, (uint64_t)registers_address, PTE_PRESENT | PTE_WRITABLE | PTE_CACHE_DISABLE);
 
     printf("%x AHCI Address\n", *registers_address);
 
