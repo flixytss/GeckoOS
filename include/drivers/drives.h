@@ -29,7 +29,6 @@ struct kdrive_t
 
 void register_kdrive( struct kdrive_t drive );
 struct kdrive_t *get_kdrive( int i );
-void drives_init();
 
 extern struct kdrive_t drives[32];
 

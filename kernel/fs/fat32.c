@@ -15,6 +15,7 @@
 #include <partition/partition.h>
 #include <fs/fs.h>
 #include <stdint.h>
+#include "sys/errno.h"
 
 typedef struct __attribute__((packed)) {
     uint8_t  jmp_boot[3];
@@ -474,9 +475,9 @@ int fat32_delete_file(struct drive_fs_t *fs, char *name)
 }
 
 //ember2819
-int fat32_mkdir(struct drive_fs_t *fs, char *name)
+int fat32_mkdir(struct drive_fs_t *fs, uint32_t dir_cluster, const char *name)
 {
-    if (!fs) return -1;
+    if (!fs || !name) return -EINVAL;
     FAT32_Volume   *pvol  = (FAT32_Volume *)fs->userdata1;
     struct kdrive_t *drive = fs->drive;
 
@@ -485,17 +486,20 @@ int fat32_mkdir(struct drive_fs_t *fs, char *name)
     memset(&ctx, 0, sizeof(ctx));
     ctx.find_free = 1;
 
-    fat32_dir_iterate(drive, pvol, pvol->root_cluster, tmp, dir_search_cb, &ctx);
-    if (!ctx.found) return -1;
+    fat32_dir_iterate(drive, pvol, dir_cluster, tmp, dir_search_cb, &ctx);
+    if (!ctx.found) return -ENOSPC;
 
     FAT32_DirEntry entry;
     memset(&entry, 0, sizeof(entry));
-    encode_83_name(name, entry.name, entry.ext);
+    encode_83_name((char*)name, entry.name, entry.ext);
     entry.attributes         = FAT32_ATTR_DIRECTORY;
-    entry.first_cluster_high = 0;
-    entry.first_cluster_low  = 0;
-    entry.file_size          = 0;
     entry.write_date         = (uint16_t)((44 << 9) | (1 << 5) | 1);
+
+    uint32_t cluster = fat32_alloc_cluster(drive, pvol);
+    entry.first_cluster_low = cluster & 0xFFFF;
+    entry.first_cluster_high = cluster << 16;
+
+    // printf("allocated cluster: %x\n", cluster);
 
     return fat32_write_dir_entry(drive, ctx.found_lba, ctx.found_idx, &entry);
 }
@@ -718,41 +722,54 @@ static size_t fat32_inode_read(struct vfs_inode* inode,
     return bytes_read;
 }
 
-int fat32_vfs_read_file(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t count) {
-    if (!inode || inode->mode != VFS_FILE) return -1;
+size_t fat32_vfs_read_file(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t count) {
+    if (!inode) return -EINVAL;
 
     return fat32_inode_read(inode, offset, count, buffer);
 }
 
-int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode* buffer) {
-    if (!inode || !buffer || !name) return -1;
+int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer) {
+    if (!inode || !buffer || !name) return -EINVAL;
     // for(;;);
 
     struct fs_entries_t entries = fat32_get_dir_entries(inode->fs->reserved, inode->ino);
 
     for (int i = 0; i < entries.count; i++) {
-        if (strcasecmp(name, entries.entries[i].file.name) == 0) {
-            buffer->fs = inode->fs;
-            buffer->mode = entries.entries[i].type;
-            buffer->ops = vfs_ops[VFS_OPS_FAT32];
-            buffer->reserved = &entries.entries[i];
-            if (buffer->mode == VFS_FILE) {
-                buffer->size = entries.entries[i].file.file_size;
-                buffer->ino = entries.entries[i].file.userdata2;
-            } else if (buffer->mode == VFS_DIR) {
-                buffer->size = 0;
-                buffer->ino = entries.entries[i].dir.userdata2;
-            }
+        if (strcasecmp(name, entries.entries[i].file.name) != 0) continue;
 
-            return 1;
+        uint64_t ino = 0;
+
+        if (entries.entries[i].type == VFS_FILE)
+            ino = entries.entries[i].file.userdata2;
+        else
+            ino = entries.entries[i].dir.userdata2;
+        
+        struct vfs_inode* find = vfs_inode_create(inode->fs, ino);
+        if (!find) {
+            kfree(entries.entries);
+            return -ENOMEM;
         }
+
+        if (entries.entries[i].type == VFS_FILE) find->size = entries.entries[i].file.file_size;
+        find->mode = entries.entries[i].type;
+        find->reserved = memcpy(kmalloc(sizeof(drive_entry_t)), &entries.entries[i], sizeof(drive_entry_t));
+        find->ops = vfs_ops[VFS_OPS_FAT32];
+
+        *buffer = find;
+        kfree(entries.entries);
+        return 0;
     }
 
-    return -1;
+    return -ENOENT;
 }
 
-int fat32_vfs_write_file(struct vfs_inode* inode,
+size_t fat32_vfs_write_file(struct vfs_inode* inode,
                       size_t offset, const uint8_t *content, size_t len)
 {
     return fat32_file_write(inode->reserved, offset, len, content);
+}
+
+int fat32_vfs_mkdir(struct vfs_inode* inode, const char* name) {
+    if (!inode) return -EINVAL;
+    return fat32_mkdir(inode->fs->reserved, inode->ino, name);
 }

@@ -19,14 +19,16 @@ int fat32_delete_file( struct drive_fs_t *fs, char *name );
 int fat32_append_file( struct drive_fs_t *fs, char *name,
                        const uint8_t *content, size_t len );
 
-int fat32_mkdir( struct drive_fs_t *fs, char *name );
+int fat32_mkdir(struct drive_fs_t *fs, uint32_t dir_cluster, const char *name);
 
 void fat32_print_info( struct drive_fs_t *fs, uint8_t color );
 
-int fat32_vfs_read_file(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t count);
+size_t fat32_vfs_read_file(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t count);
 
-int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode* buffer);
+int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer);
 
-int fat32_vfs_write_file(struct vfs_inode* inode, size_t offset, const uint8_t *content, size_t len);
+size_t fat32_vfs_write_file(struct vfs_inode* inode, size_t offset, const uint8_t *content, size_t len);
+
+int fat32_vfs_mkdir(struct vfs_inode* inode, const char* name);
 
 #endif // FAT32_H

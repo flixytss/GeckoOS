@@ -1,6 +1,7 @@
 #include "boot/multiboot2.h"
 #include "drivers/acpi.h"
 #include "drivers/apic/lapic.h"
+#include "drivers/ata.h"
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
@@ -27,6 +28,8 @@
 #include <fs/fs.h>
 #include <drivers/hid/keyboard.h>
 #include <fs/vfs.h>
+#include <fs/devfs.h>
+#include <sys/errno.h>
 // I think all of these includes are useless, they are there because someone (me) forgot to delete them after finishing them
 
 #define GECKO_VERSION "2.3"
@@ -46,9 +49,8 @@ bool has_apic;
 
 typedef void (*driver_init)();
 driver_init drivers[] = {
-    vfs_init,
     terminal_init,
-    drives_init,
+    ata_init,
     enumerate_pci,
     pci_detect_controllers,
     net_init,
@@ -56,8 +58,7 @@ driver_init drivers[] = {
     keyboard_install
 };
 
-__attribute__((section(".text.entry")))
-void _entry(uint64_t mbi) {
+__attribute__((section(".text.entry"))) void _entry(uint64_t mbi) {
     initialize_memory_manager_from_mbi(mbi);
     kalloc_init(max_mem_used.base_addr + 0x100000, max_mem_used.length);
 
@@ -125,15 +126,25 @@ void _entry(uint64_t mbi) {
 void kmain() {
     for (int i = 0; i < (sizeof(drives) / sizeof(drives[0])); i++) {
         if (!drives[i].sector_size) continue;
-        if (fsmount(i) == 1) break;
+        fsmount(i);
     }
 
+    // Adds the first drive's filesystem to the virtual filesystems array
     vfs_add(fss[0]);
-    
-    struct vfs_inode here;
-    // printf("%d\n", vfs_lookup_path("/dildos/bigones", &here));
 
-    // print_irqs(11);
+    // Adds the devfs to the virtual filesystems array
+    vfs_devfs_init();
+    vfs_add_vfs(create_devfs());
+
+    // Set the first virtual filesystem as the root one
+    vfs_set_root_(get_vfs_(0));
+
+    vfs_mkdir_path("/dev");
+    vfs_mount("/dev", get_vfs_(1));
+
+    // vfs_mkdir_path("/dev/dir1");
+    // vfs_mkdir_path("/dev/dir2");
+    // vfs_mkdir_path("/dev/dir2/dir3");
 
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

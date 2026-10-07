@@ -4,7 +4,6 @@
 #include <mem/paging.h>
 #include <mem/physical_mem.h>
 #include <mem.h>
-#include "drivers/apic/ioapic.h"
 #include "drivers/vga.h"
 #include "terminal/printf.h"
 
@@ -163,8 +162,10 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
 
     read_mac();
     set_printf_color(VGA_COLOR_LIGHT_GREY);
-    printf("  e1000: MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    #ifdef DEBUG
+        printf("  e1000: MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    #endif
 
     /* write MAC into receive address register 0 */
     e1000_write(E1000_RAL,
@@ -189,7 +190,10 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
 
     uint8_t irq_line = pci_readb(bus, slot, func, 0x3C);
     irq_install_handler(irq_line, e1000_irq_handler,0x9);
-    printf("  e1000: init done, IRQ %d\n", irq_line);
+
+    #ifdef DEBUG
+        printf("  e1000: init done, IRQ %d\n", irq_line);
+    #endif
 
     set_printf_color(VGA_COLOR_WHITE);
 

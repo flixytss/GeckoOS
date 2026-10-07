@@ -2,6 +2,7 @@
 #include "fs/vfs.h"
 #include "terminal/terminal.h"
 #include "terminal/printf.h"
+#include "sys/errno.h"
 #include <fs/fat32.h>
 #include <fs/fs.h>
 #include <stddef.h>
@@ -53,7 +54,7 @@ int fsmount(int drive) {
     struct kdrive_t* d;
     if (!(d = get_kdrive(drive))) {
         // printc("No slave drive found. Is fat32.img attached as a second drive?\n", VGA_COLOR_RED);
-        return 0;
+        return -ENODEV;
     }
     fss[i]->drive = d;
     d->fs = fss[i] = fs_drive_open(d, fss[i]);
@@ -67,5 +68,5 @@ int fsmount(int drive) {
     actual_fs = i;
     memcpy(fss[i]->volume_name, d->sysname, sizeof(d->sysname));
 
-    return 1;
+    return 0;
 }

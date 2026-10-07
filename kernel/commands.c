@@ -5,7 +5,9 @@
 #include "drivers/input.h"
 #include "drivers/pit.h"
 #include "drivers/usb.h"
+#include "fs/vfs.h"
 #include "process/process.h"
+#include "sys/errno.h"
 #include <commands.h>
 #include <bootoptions.h>
 #include <colors.h>
@@ -67,6 +69,7 @@ static Command commands[] = {
     { "echo",         cmd_echo         },
     { "write",        cmd_write        },
     { "runelf",       cmd_runelf       },
+    { "cd",           cmd_cd           },
     // --- network ---
     { "ping",         cmd_ping         },
     // --- proccess ---
@@ -119,6 +122,7 @@ static const char* help_lines[] = {
     "runelf      - Runs an ELF file",
     "showdrives  - Show the connected drives",
     "mounts      - Show the mount points",
+    "cd          - Change directory",
     "",
     "--- Network ---",
     "ping <ip>   - Ping an IP address (e.g. ping 10.0.2.2)",
@@ -130,6 +134,9 @@ static const char* help_lines[] = {
 };
 
 #define SPACE_SC 0x39
+
+// This file will be useless if someone implements elfs, but at least this file if very good to debug
+struct dentry actual_path;
 
 static void cmd_help(uint8_t color) {
     int num_lines = 0;
@@ -508,15 +515,15 @@ static void cmd_mv(uint8_t color) {
 }
 
 static void cmd_mkdir(uint8_t color) {
-    unsigned char dname[32];
+    unsigned char dname[200];
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
-    printc("\nDirectory name: ", color);
-    input(dname, 32, color);
+    printc("\nDirectory path: ", color);
+    input(dname, 200, color);
     printc("\n", color);
 
-    int result = fat32_mkdir(fss[actual_fs], (char*)dname);
-    if (result == 0) {
+    int result = vfs_mkdir_path(dname);
+    if (result == 1) {
         printc("Directory created: ", color);
         printc((char*)dname, color);
         printc("\n", color);
@@ -900,6 +907,25 @@ static void cmd_mounts(uint8_t color) {
         // if (!mounts[i]) continue;
         // printf("%s mounted on %s\n", mounts[i]->fs->volume_name, mounts[i]->mountpoint->name);
     }
+}
+
+static void cmd_cd(uint8_t color) {
+    printf("\n");
+    unsigned char path[4069];
+
+    printf("Actual path: %s\n", actual_path.path);
+    printf("Enter the path (must be from the root directory): ");
+    input(path, 4096, color);
+
+    struct vfs_inode* inode;
+    if (vfs_lookup_path(path, &inode) == -ENOENT) {
+        printf("\nPath not found\n");
+        return;
+    }
+
+    strcpy(actual_path.path, path);
+    actual_path.inode = inode;
+    printf("\n");
 }
 
 static int streq(unsigned char *a, char *b) {

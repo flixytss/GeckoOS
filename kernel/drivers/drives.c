@@ -48,7 +48,7 @@ void register_kdrive(struct kdrive_t drive)
 			continue;
 		load_parameters(&drive);
 		drives[i] = drive;
-		npf_snprintf(drives[i].sysname, sizeof(drives[i].sysname), "Gk%d", i);
+		npf_snprintf(drives[i].sysname, sizeof(drives[i].sysname), "gkd%d", i); // gkd = geckos drive
 
 		break;
 	}
@@ -57,11 +57,4 @@ void register_kdrive(struct kdrive_t drive)
 struct kdrive_t *get_kdrive( int i )
 {
 	return drives[i].read ? &drives[i] : NULL;
-}
-
-void drives_init()
-{
-	memset(drives, 0, sizeof(drives));
-	memset(fss, 0, sizeof(fss));
-	ata_init();
 }
