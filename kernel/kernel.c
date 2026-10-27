@@ -140,19 +140,9 @@ void kmain() {
 
     struct vfs_inode* buffer = NULL;
     vfs_mkdir_path("/dev");
-    printf("kernel %d %p\n", vfs_lookup_path("/dev", &buffer), buffer);
     vfs_mount("/dev", get_vfs_(1));
 
-    vfs_mkdir_path("/dev/dir1");
-    vfs_mkdir_path("/dev/dir2");
-    vfs_mkdir_path("/dev/dir3");
-    vfs_mkdir_path("/dev/dir1/inside");
-    // vfs_mkdir_path("/dev/dir2/dir33");
-
-    printf("kernel %d %p\n", vfs_lookup_path("/dev", &buffer), buffer);
-    // devfs_vfs_print_node_childrens(buffer);
-    // printf("%s\n", ((struct ramfs_node*)(u64)buffer->reserved)->name);
-    devfs_vfs_print_node_childrens(buffer);
+    vfs_open("/dev/file", 0x1);
     
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

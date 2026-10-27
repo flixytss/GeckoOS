@@ -5,6 +5,7 @@
 #include "sys/types.h"
 #include <terminal/printf.h>
 #include "sys/errno.h"
+#include "terminal/terminal.h"
 
 struct vfs_inode_ops* vfs_ops[4]; // 0 = FAT32, 1 = devfs
 
@@ -90,25 +91,21 @@ void vfs_set_root_(struct vfs_filesystem* vfs) { root_vfs = vfs; }
 int vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer)
     { return inode->ops->lookup(inode, name, buffer); }
 
-int vfs_lookup_path(char *name, struct vfs_inode** buffer) {
-    if (!name || !buffer || !root_vfs) return -EINVAL;
+int vfs_lookup_path(const char* path, struct vfs_inode** buffer) {
+    char tmp[PATH_MAX];
+    strncpy(tmp, path, PATH_MAX - 1);
+    tmp[PATH_MAX - 1] = 0;
 
-    char* tok = strtok((char*)name, "/");
+    char* tok = strtok(tmp, "/");
 
     struct vfs_inode* search_in = root_vfs->root;
     if (!search_in) return -EINVAL;
 
-    printf("starting loop\n");
     while (tok) {
-        printf("loop %p\n", search_in);
-        if (search_in) if (vfs_lookup(search_in, tok, &search_in) != 0) return -ENOENT;
-        printf("ending search %p\n", search_in->mount->root);
-        // for(;;);
-        if (search_in->mount) {
+        if (vfs_lookup(search_in, tok, &search_in) != 0)
+            return -ENOENT;
+        if (search_in->mount)
             search_in = search_in->mount->root;
-            // printf("mouting %p\n", ((struct ramfs_node*)search_in->mount->root->reserved)->name);
-        }
-        printf("ending search %p %p %s\n", search_in->mount->fs, get_vfs_(1), tok);
 
         tok = strtok(NULL, "/");
     }
@@ -118,7 +115,7 @@ int vfs_lookup_path(char *name, struct vfs_inode** buffer) {
 }
 
 size_t vfs_read(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset)
-    { return inode ? (inode->mode == VFS_FILE ? inode->ops->read(inode, offset, buffer, count) : -EISDIR) : root_vfs->root->ops->read(root_vfs->root, offset, buffer, count); }
+    { return inode->mode == VFS_FILE ? inode->ops->read(inode, offset, buffer, count) : -EISDIR; }
 size_t vfs_write(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset)
     { return inode->mode == VFS_FILE ? inode->ops->write(inode, offset, buffer, count) : -EISDIR; }
 
@@ -154,10 +151,13 @@ int vfs_mkdir(struct vfs_inode* inode, const char* name) {
     return inode->ops->mkdir(inode, name);
 }
 
-int vfs_mkdir_path(const char* name) {
-    if (!name) return -EINVAL;
+int vfs_mkdir_path(const char* path) {
+    if (!path) return -EINVAL;
 
-    char* tok = strtok((char*)name, "/");
+    char tmp[PATH_MAX];
+    strncpy(tmp, path, PATH_MAX - 1);
+    tmp[PATH_MAX - 1] = 0;
+    char* tok = strtok(tmp, "/");
 
     struct vfs_inode* search_in = root_vfs->root;
     if (!search_in) return -EINVAL;
@@ -167,7 +167,6 @@ int vfs_mkdir_path(const char* name) {
             search_in = search_in->mount->root;
         if (vfs_lookup(search_in, tok, &search_in) != 0)
             return vfs_mkdir(search_in, tok);
-        else {printf("going into %p %s\n", search_in, tok);}
 
         tok = strtok(NULL, "/");
     }
@@ -180,3 +179,64 @@ int vfs_delete(struct vfs_inode* inode) {
 
     return inode->ops->delete(inode);
 }
+
+#define FILE_R 0x1
+#define FILE_W 0x2
+
+struct vfs_file* vfs_open(const char* path, u32 flags) {
+    struct vfs_file* file;
+    struct vfs_inode* inode;
+
+
+    // Looking the last working sub-paths of the full path
+    char tmp[PATH_MAX];
+    char* tok;
+    char* name;
+    struct vfs_inode* in;
+    struct vfs_inode* new;
+    struct vfs_inode* father;
+
+    strncpy(tmp, path, PATH_MAX - 1);
+    tmp[PATH_MAX - 1] = 0;
+
+    tok = strtok(tmp, "/");
+    in = root_vfs->root; // started looking the path from the root directory
+
+    while (tok) {
+        if (vfs_lookup(in, tok, &new) != 0) {
+            name = strdup(tok);
+            father = in;
+            break;
+        }
+
+        in = new;
+        tok = strtok(NULL, "/");
+    }
+
+    file = kmalloc(sizeof(struct vfs_file));
+    inode = kmalloc(sizeof(struct vfs_inode));
+
+    if (!file) goto file_kmalloc_err;
+    if (!inode) goto inode_kmalloc_err;
+
+    memset(file, 0, sizeof(struct vfs_file));
+    memset(inode, 0, sizeof(struct vfs_inode));
+
+    file->inode = inode;
+    file->flags = flags;
+    file->name = name;
+    
+    inode->fs = father->fs;
+    inode->mode = VFS_FILE;
+
+    return file;
+
+file_kmalloc_err:
+    pretty_printf("var file: no memory available")
+
+inode_kmalloc_err:
+    pretty_printf("var inode: no memory available")
+
+    return NULL;
+}
+

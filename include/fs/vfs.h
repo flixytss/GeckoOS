@@ -50,6 +50,7 @@ struct vfs_filesystem {
 
 struct vfs_file {
     struct vfs_inode* inode;
+    char* name;
     u32 offset;
     u32 flags;
 };
@@ -64,21 +65,27 @@ extern struct vfs_filesystem vfs_ramfs;
 struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, u64 ino);
 
 void vfs_add_fs(struct drive_fs_t* fs);
+void vfs_add_vfs(struct vfs_filesystem* vfs);
 
 void vfs_fat32_init();
 void vfs_devfs_init();
 
 int vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer);
-int vfs_lookup_path(char *name, struct vfs_inode** buffer);
+int vfs_lookup_path(const char* path, struct vfs_inode** buffer);
+
 size_t vfs_read(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset);
 size_t vfs_write(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset);
+
 void vfs_set_root_(struct vfs_filesystem* vfs);
 struct vfs_filesystem* get_vfs_(int index);
+
 int vfs_mount(const char* name, struct vfs_filesystem* vfs);
 int vfs_umount(const char* name);
-void vfs_add_vfs(struct vfs_filesystem* vfs);
+
 int vfs_mkdir(struct vfs_inode* inode, const char* name);
-int vfs_mkdir_path(const char* name);
+int vfs_mkdir_path(const char* path);
+
+struct vfs_file* vfs_open(const char* path, u32 flags);
 
 // VFS Options
 extern struct vfs_inode_ops* vfs_ops[4];
