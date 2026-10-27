@@ -5,7 +5,7 @@
 #include <mem/physical_mem.h>
 #include <mem/paging.h>
 #include <ports.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <arch/x86_64/isr.h>
 #include <drivers/vga.h>
 #include <terminal/printf.h>
@@ -13,9 +13,9 @@
 
 #define MAX_PROCESSES 16
 
-static uint32_t current_index = 0;
-uint32_t        nr_processes  = 0;
-uint32_t        nextid        = 0;
+static u32 current_index = 0;
+u32        nr_processes  = 0;
+u32        nextid        = 0;
 
 typedef struct {
     Process     *data[MAX_PROCESSES];
@@ -59,22 +59,22 @@ static page_table_t *new_address_space(void)
     return pml4;
 }
 
-uint32_t create_process(void *entry_point, uint64_t entry_to, void *data_point, uint64_t data_to)
+u32 create_process(void *entry_point, u64 entry_to, void *data_point, u64 data_to)
 {
     page_table_t *pml4 = new_address_space();
 
     // Map the memory
-    for (uint64_t phys = 0; phys < 0x1000000; phys += PAGE_SIZE) {
+    for (u64 phys = 0; phys < 0x1000000; phys += PAGE_SIZE) {
         if (!vmm_map(pml4, phys, phys, PTE_PRESENT | PTE_WRITABLE))
             return false;
     }
 
     if (g_fb_addr) {
-        uint64_t fb_phys_start = g_fb_addr & ~((uint64_t)PAGE_SIZE - 1);
-        uint64_t fb_size       = (uint64_t)g_fb_height * g_fb_pitch;
-        uint64_t fb_pages      = (fb_size + PAGE_SIZE - 1) / PAGE_SIZE + 1;
-        for (uint64_t i = 0; i < fb_pages; i++) {
-            uint64_t p = fb_phys_start + i * PAGE_SIZE;
+        u64 fb_phys_start = g_fb_addr & ~((u64)PAGE_SIZE - 1);
+        u64 fb_size       = (u64)g_fb_height * g_fb_pitch;
+        u64 fb_pages      = (fb_size + PAGE_SIZE - 1) / PAGE_SIZE + 1;
+        for (u64 i = 0; i < fb_pages; i++) {
+            u64 p = fb_phys_start + i * PAGE_SIZE;
             if (!vmm_map(pml4, p, p,
                          PTE_PRESENT | PTE_WRITABLE | PTE_CACHE_DISABLE))
                 return false;
@@ -82,12 +82,12 @@ uint32_t create_process(void *entry_point, uint64_t entry_to, void *data_point, 
     }
 
     // The process
-    for (uint64_t phys = 0; phys < 0x1000; phys += PAGE_SIZE) {
-        if (!vmm_map(pml4, (uint64_t)entry_point + phys, entry_to + phys, PTE_PRESENT | PTE_WRITABLE))
+    for (u64 phys = 0; phys < 0x1000; phys += PAGE_SIZE) {
+        if (!vmm_map(pml4, (u64)entry_point + phys, entry_to + phys, PTE_PRESENT | PTE_WRITABLE))
             return false;
     }
-    for (uint64_t phys = 0; phys < 0x1000; phys += PAGE_SIZE) {
-        if (!vmm_map(pml4, (uint64_t)data_point + phys, data_to + phys, PTE_PRESENT | PTE_WRITABLE))
+    for (u64 phys = 0; phys < 0x1000; phys += PAGE_SIZE) {
+        if (!vmm_map(pml4, (u64)data_point + phys, data_to + phys, PTE_PRESENT | PTE_WRITABLE))
             return false;
     }
 
@@ -104,18 +104,18 @@ uint32_t create_process(void *entry_point, uint64_t entry_to, void *data_point, 
     main_thread->priority     = 1;
     main_thread->state        = ACTIVE;
     main_thread->stack        = NULL;
-    main_thread->stack_limit  = (void *)((uint64_t)main_thread->stack + PAGE_SIZE);
+    main_thread->stack_limit  = (void *)((u64)main_thread->stack + PAGE_SIZE);
     main_thread->pgm_buf      = 0;
     main_thread->pgm_size     = 0;
 
     memset(&main_thread->regs, 0, sizeof(main_thread->regs));
-    main_thread->regs.rip    = (uint64_t)entry_point;
+    main_thread->regs.rip    = (u64)entry_point;
     main_thread->regs.rflags = 0x200;
 
     /* Map a 4 KB user stack above the program buffer */
-    uint64_t stack_virt = main_thread->pgm_buf + main_thread->pgm_size + PAGE_SIZE;
+    u64 stack_virt = main_thread->pgm_buf + main_thread->pgm_size + PAGE_SIZE;
     void *phys = allocate_blocks(1);
-    vmm_map(pml4, (uint64_t)phys, stack_virt, PTE_PRESENT | PTE_WRITABLE);
+    vmm_map(pml4, (u64)phys, stack_virt, PTE_PRESENT | PTE_WRITABLE);
 
     main_thread->regs.rsp = stack_virt;
 
@@ -129,8 +129,8 @@ static void execute_process(Process *proc)
 {
     if (!proc->id || !proc->pml4) return;
 
-    uint64_t entry_point = proc->threads[0].regs.rip;
-    uint64_t proc_stack  = proc->threads[0].regs.rsp;
+    u64 entry_point = proc->threads[0].regs.rip;
+    u64 proc_stack  = proc->threads[0].regs.rsp;
     vmm_set_pml4(proc->pml4);
     
     __asm__ __volatile__(

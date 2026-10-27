@@ -3,8 +3,7 @@
 #include "drivers/vga.h"
 #include "mem/paging.h"
 #include "terminal/terminal.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 #include <arch/x86_64/irq.h>
 #include <drivers/pit.h>
@@ -16,8 +15,8 @@ int isos_num = 0;
 void *find_rsdp()
 {
 
-    /* uint8_t *mbi        = (uint8_t *)mbi_addr;
-    uint32_t total_size = *(uint32_t *)mbi;
+    /* u8 *mbi        = (u8 *)mbi_addr;
+    u32 total_size = *(u32 *)mbi;
 
     multiboot2_tag_t *tag = (multiboot2_tag_t *)(mbi + 8);
     uintptr_t mbi_end     = (uintptr_t)mbi + total_size;
@@ -51,11 +50,11 @@ void *find_rsdp()
 
     return acpi_info_grub->rsdp;
 manual:
-    for (uint64_t p = 0x000E0000; p < 0x000FFFFF; p += 16)
-        if (*(uint64_t*)p == 0x5253442050545220) return (void*)p;
+    for (u64 p = 0x000E0000; p < 0x000FFFFF; p += 16)
+        if (*(u64*)p == 0x5253442050545220) return (void*)p;
     // If nothing was found, keep searching from 0x40E to 0x40E + 1KIB (EBDA memory),
-    for (uint64_t p = (0x40E * 0x10) & 0x000FFFFF; p < 0x40E + 1024; p += 0x10 / sizeof(p))
-        if (*(uint64_t*)p == 0x5253442050545220) return (void*)p;
+    for (u64 p = (0x40E * 0x10) & 0x000FFFFF; p < 0x40E + 1024; p += 0x10 / sizeof(p))
+        if (*(u64*)p == 0x5253442050545220) return (void*)p;
 nothing:
     set_printf_color(VGA_COLOR_RED);
         printf("No ACPI tag found!\n");
@@ -66,16 +65,16 @@ nothing:
 uintptr_t acpi_lapic_base  = 0;
 uintptr_t acpi_ioapic_base = 0;
 // Find MADT via XSDT (ACPI 2.0+)
-static struct acpi_madt *find_madt_via_xsdt(uint64_t xsdt_phys)
+static struct acpi_madt *find_madt_via_xsdt(u64 xsdt_phys)
 {
     // Map just the header first to get length
     struct acpi_header *header =
         (struct acpi_header *)mmio_map(xsdt_phys, sizeof(struct acpi_header));
-    if (!header || *(uint32_t*)header->signature != 0x54445358) {
+    if (!header || *(u32*)header->signature != 0x54445358) {
         return NULL;
     }
 
-    uint32_t length = header->length;
+    u32 length = header->length;
     mmio_unmap((uintptr_t)header, sizeof(struct acpi_header));
 
     // Map the entire XSDT
@@ -86,8 +85,8 @@ static struct acpi_madt *find_madt_via_xsdt(uint64_t xsdt_phys)
 
     // Number of entries (each is 8 bytes for XSDT)
     int count = (xsdt->length - sizeof(struct acpi_header)) / 8;
-    uint64_t *entries =
-        (uint64_t *)((uint8_t *)xsdt + sizeof(struct acpi_header));
+    u64 *entries =
+        (u64 *)((u8 *)xsdt + sizeof(struct acpi_header));
 
     struct acpi_madt *madt = NULL;
 
@@ -98,9 +97,9 @@ static struct acpi_madt *find_madt_via_xsdt(uint64_t xsdt_phys)
         if (!hdr)
             continue;
 
-        if (*(uint32_t*)hdr->signature == 0x43495041) {
+        if (*(u32*)hdr->signature == 0x43495041) {
             // Found MADT - map the entire table
-            uint32_t madt_len = hdr->length;
+            u32 madt_len = hdr->length;
             mmio_unmap((uintptr_t)hdr, sizeof(struct acpi_header));
 
             madt = (struct acpi_madt *)mmio_map(entries[i], madt_len);
@@ -115,16 +114,16 @@ static struct acpi_madt *find_madt_via_xsdt(uint64_t xsdt_phys)
 }
 
 // Find MADT via RSDT (ACPI 1.0)
-static struct acpi_madt *find_madt_via_rsdt(uint32_t rsdt_phys)
+static struct acpi_madt *find_madt_via_rsdt(u32 rsdt_phys)
 {
     // Map just the header first
     struct acpi_header *header =
         (struct acpi_header *)mmio_map(rsdt_phys, sizeof(struct acpi_header));
-    if (!header || *(uint32_t*)header->signature != 0x54445352) {
+    if (!header || *(u32*)header->signature != 0x54445352) {
         return NULL;
     }
 
-    uint32_t length = header->length;
+    u32 length = header->length;
     mmio_unmap((uintptr_t)header, sizeof(struct acpi_header));
 
     // Map the entire RSDT
@@ -135,8 +134,8 @@ static struct acpi_madt *find_madt_via_rsdt(uint32_t rsdt_phys)
 
     // Number of entries (each is 4 bytes for RSDT)
     int count = (rsdt->length - sizeof(struct acpi_header)) / 4;
-    uint32_t *entries =
-        (uint32_t *)((uint8_t *)rsdt + sizeof(struct acpi_header));
+    u32 *entries =
+        (u32 *)((u8 *)rsdt + sizeof(struct acpi_header));
 
     struct acpi_madt *madt = NULL;
 
@@ -147,9 +146,9 @@ static struct acpi_madt *find_madt_via_rsdt(uint32_t rsdt_phys)
         if (!hdr)
             continue;
 
-        if (*(uint32_t*)hdr->signature == 0x43495041) {
+        if (*(u32*)hdr->signature == 0x43495041) {
             // Found MADT - map the entire table
-            uint32_t madt_len = hdr->length;
+            u32 madt_len = hdr->length;
             mmio_unmap((uintptr_t)hdr, sizeof(struct acpi_header));
 
             madt = (struct acpi_madt *)mmio_map(entries[i], madt_len);
@@ -178,8 +177,8 @@ static int parse_madt_entries(struct acpi_madt *madt)
     #endif
 
     // Parse entries after the MADT header
-    uint8_t *ptr = (uint8_t *)madt + sizeof(struct acpi_madt);
-    uint8_t *end = (uint8_t *)madt + madt->header.length;
+    u8 *ptr = (u8 *)madt + sizeof(struct acpi_madt);
+    u8 *end = (u8 *)madt + madt->header.length;
 
     int found_ioapic = 0;
 
@@ -283,7 +282,7 @@ int acpi_init()
                     printf("FAIL: Could not map XSDT header\n");
                 set_printf_color(VGA_COLOR_WHITE);
             } else {
-                if (*(uint32_t*)xsdt_header->signature == 0x54445358) {
+                if (*(u32*)xsdt_header->signature == 0x54445358) {
                     // Map full XSDT
                     struct acpi_header *xsdt = (struct acpi_header *)mmio_map(
                         rsdp_v2->xsdt_addr, xsdt_header->length);
@@ -292,8 +291,8 @@ int acpi_init()
                             (xsdt->length - sizeof(struct acpi_header)) / 8;
                         // printf("XSDT has %d entries\n", count);
 
-                        uint64_t *entries =
-                            (uint64_t *)((uint8_t *)xsdt +
+                        u64 *entries =
+                            (u64 *)((u8 *)xsdt +
                                          sizeof(struct acpi_header));
                         for (int i = 0; i < count; i++) {
                             // printf("  Entry %d: 0x%lx\n", i,
@@ -309,8 +308,8 @@ int acpi_init()
                                 set_printf_color(VGA_COLOR_WHITE);
                                 continue;
                             }
-                            uint32_t length = hdr->length;
-                            switch (*(uint32_t*)hdr->signature) {
+                            u32 length = hdr->length;
+                            switch (*(u32*)hdr->signature) {
                                 case 0x43495041: // MADT
                                     mmio_unmap((uintptr_t)hdr,
                                            sizeof(struct acpi_header));
@@ -351,14 +350,14 @@ int acpi_init()
             //   printf("RSDT signature: %.4s\n", rsdt_header->signature);
             // printf("RSDT length: %u\n", rsdt_header->length);
 
-            if (*(uint32_t*)rsdt_header->signature == 0x54445352) {
+            if (*(u32*)rsdt_header->signature == 0x54445352) {
                 struct acpi_header *rsdt = (struct acpi_header *)mmio_map(
                     rsdp->rsdt_addr, rsdt_header->length);
                 if (rsdt) {
                     int count = (rsdt->length - sizeof(struct acpi_header)) / 4;
                     // printf("RSDT has %d entries\n", count);
-                    uint32_t *entries =
-                        (uint32_t *)((uint8_t *)rsdt +
+                    u32 *entries =
+                        (u32 *)((u8 *)rsdt +
                                      sizeof(struct acpi_header));
 
                     for (int i = 0; i < count; i++) {
@@ -369,7 +368,7 @@ int acpi_init()
                                 entries[i], sizeof(struct acpi_header));
                         if (!hdr)
                             continue;
-                        switch (*(uint32_t*)hdr->signature) {
+                        switch (*(u32*)hdr->signature) {
                             case 0x43495041: // MADT
                                 madt = (struct acpi_madt *)mmio_map(
                                     entries[i], hdr->length);
@@ -378,14 +377,14 @@ int acpi_init()
                                 fadt = (acpi_fadt_t *)mmio_map(
                                     entries[i], hdr->length);
                                 
-/*                                 struct acpi_header* dsdt = (struct acpi_header*)mmio_map((uint64_t)fadt->dsdt, sizeof(struct acpi_header));
-                                uint32_t amllenght = dsdt->length - sizeof(struct acpi_header);
-                                uint8_t* amlbytes = (uint8_t*)mmio_map((uint64_t)(dsdt + sizeof(struct acpi_header)), amllenght);
+/*                                 struct acpi_header* dsdt = (struct acpi_header*)mmio_map((u64)fadt->dsdt, sizeof(struct acpi_header));
+                                u32 amllenght = dsdt->length - sizeof(struct acpi_header);
+                                u8* amlbytes = (u8*)mmio_map((u64)(dsdt + sizeof(struct acpi_header)), amllenght);
 
-                                uint32_t* S5Addr;
-                                for (uint32_t i = 0; i < amllenght; i++) {
+                                u32* S5Addr;
+                                for (u32 i = 0; i < amllenght; i++) {
                                     printf("%p\n", &amlbytes[i]);
-                                    if (*((uint32_t*)&amlbytes[i]) == 0x5F35535F) break;
+                                    if (*((u32*)&amlbytes[i]) == 0x5F35535F) break;
                                 } */
                                 break;
                             case 0x54445344:
@@ -424,7 +423,7 @@ int acpi_init()
         if (fadt->smiCommandPort != 0 && fadt->acpiEnable != 0) {
             outb(fadt->smiCommandPort, fadt->acpiEnable);
 
-            uint16_t i;
+            u16 i;
             for (i = 0; i < 300; i++) {
                 if ( (inw((unsigned int) fadt->pm1aControlBlk) & 1) == 1 )
                     break;

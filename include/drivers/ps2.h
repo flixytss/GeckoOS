@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 #define PS2_CMD_PORT 0x64 // read/write PS/2 command register
 #define PS2_DATA_PORT                                                        \
@@ -14,6 +14,6 @@ bool test_ps2_controller();
 bool test_ps2_port(bool port);
 void disable_ps2_devices();
 void enable_ps2_devices();
-uint8_t ps2_init();
+u8 ps2_init();
 
 extern bool has_ps2mouse_support;

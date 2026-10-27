@@ -1,67 +1,67 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 
-#include <stdint.h>
+#include "sys/types.h"
 
 typedef struct {
     char *name;
-    void (*func)(uint8_t color);
+    void (*func)(u8 color);
 } Command;
 
 // System
-static void cmd_help(uint8_t color);
-static void cmd_hello(uint8_t color);
-static void cmd_contributors(uint8_t color);
-static void cmd_clear(uint8_t color);
-static void cmd_version(uint8_t color);
-static void cmd_chars(uint8_t color);
-static void cmd_uptime(uint8_t color);
-static void cmd_meminfo(uint8_t color);
-static void cmd_lspci(uint8_t color);
+static void cmd_help(u8 color);
+static void cmd_hello(u8 color);
+static void cmd_contributors(u8 color);
+static void cmd_clear(u8 color);
+static void cmd_version(u8 color);
+static void cmd_chars(u8 color);
+static void cmd_uptime(u8 color);
+static void cmd_meminfo(u8 color);
+static void cmd_lspci(u8 color);
 
 // Keyboard
-static void cmd_setkeyswe(uint8_t color);
-static void cmd_setkeyus(uint8_t color);
-static void cmd_setkeyuk(uint8_t color);
+static void cmd_setkeyswe(u8 color);
+static void cmd_setkeyus(u8 color);
+static void cmd_setkeyuk(u8 color);
 
 // Timer / power
-static void cmd_sleep5(uint8_t color);
-static void cmd_print_ticks(uint8_t color);
-static void cmd_reboot(uint8_t color);
+static void cmd_sleep5(u8 color);
+static void cmd_print_ticks(u8 color);
+static void cmd_reboot(u8 color);
 
 // Scripting
-static void cmd_gk(uint8_t color);
-static void cmd_gk_run_file(const char* filename, uint8_t color);
+static void cmd_gk(u8 color);
+static void cmd_gk_run_file(const char* filename, u8 color);
 
 // Filesystem
-static void cmd_fsmount(uint8_t color);
-static void cmd_ls(uint8_t color);
-static void cmd_cat(uint8_t color);
-static void cmd_fsinfo(uint8_t color);
-static void cmd_touch(uint8_t color);
-static void cmd_rm(uint8_t color);
-static void cmd_cp(uint8_t color);
-static void cmd_mv(uint8_t color);
-static void cmd_mkdir(uint8_t color);
-static void cmd_echo(uint8_t color);
-static void cmd_write(uint8_t color);
-static void cmd_runelf(uint8_t color);
-static void cmd_showdrives(uint8_t color);
-static void cmd_mounts(uint8_t color);
-static void cmd_cd(uint8_t color);
+static void cmd_fsmount(u8 color);
+static void cmd_ls(u8 color);
+static void cmd_cat(u8 color);
+static void cmd_fsinfo(u8 color);
+static void cmd_touch(u8 color);
+static void cmd_rm(u8 color);
+static void cmd_cp(u8 color);
+static void cmd_mv(u8 color);
+static void cmd_mkdir(u8 color);
+static void cmd_echo(u8 color);
+static void cmd_write(u8 color);
+static void cmd_runelf(u8 color);
+static void cmd_showdrives(u8 color);
+static void cmd_mounts(u8 color);
+static void cmd_cd(u8 color);
 
 // Network
-static void cmd_ping(uint8_t color);
+static void cmd_ping(u8 color);
 
 // Processes
-static void cmd_processes(uint8_t color);
+static void cmd_processes(u8 color);
 
 // usb
-static void cmd_show_usb(uint8_t color);
-static void cmd_show_usb_info(uint8_t color);
+static void cmd_show_usb(u8 color);
+static void cmd_show_usb_info(u8 color);
 
 // Dispatcher
 static int streq(unsigned char *a, char *b);
-void run_command(unsigned char *input, uint8_t color);
+void run_command(unsigned char *input, u8 color);
 
 #endif

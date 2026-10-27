@@ -7,7 +7,7 @@
 // Python-like syntax (Literally python btw)
 
 #ifdef GK_HOSTED
-#include <stdint.h>
+#include "sys/types.h"
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -28,15 +28,14 @@ static inline int gk_hosted_getline(char* buf, int max) {
 }
 
 #else
-#include <stdint.h>
-#include <stddef.h>
+#include "sys/types.h"
 #include <stdbool.h>
 #include <colors.h>
-void printc(char* data, uint8_t color);
+void printc(char* data, u8 color);
 
 static inline void gk_print(const char* s) { printc((char*)s, TERM_COLOR); }
 // Forward declaration for kernel input function used by gk input()
-void input(unsigned char* buff, size_t buffer_size, uint8_t color);
+void input(unsigned char* buff, size_t buffer_size, u8 color);
 
 #endif
 

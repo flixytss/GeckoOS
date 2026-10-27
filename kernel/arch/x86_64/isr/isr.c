@@ -1,21 +1,21 @@
 #include <arch/x86_64/isr.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 isr_t interrupt_handlers[256];
 
 extern void kmain();
 void ud_exception_handler(registers_t* regs) {
-    printf("Exception UD\nInvalid Opcode: 0x%x in 0x%p\nJumping back to main function...\n", *(uint8_t*)regs->rip, regs->rip);
+    printf("Exception UD\nInvalid Opcode: 0x%x in 0x%p\nJumping back to main function...\n", *(u8*)regs->rip, regs->rip);
     asm volatile(
         "mov %0, %%rax\n"
         "jmpq *%%rax"
-        : : "r"((uint64_t)kmain) // Everything will be slow for some reason
+        : : "r"((u64)kmain) // Everything will be slow for some reason
     );
     for(;;) asm volatile("hlt");
 }
 
-void register_interrupt_handler(uint8_t n, isr_t handler) {
+void register_interrupt_handler(u8 n, isr_t handler) {
     interrupt_handlers[n] = handler;
 } 
 
@@ -53,6 +53,7 @@ void isr_handler(registers_t *regs) {
         char check = regs->int_no > 21;
         printf("INTERRUPTION int_no=%d err_code=%d %s\n", regs->int_no, regs->err_code,
             check > 21 ? "" : interrupt_string_table[regs->int_no]);
+        if (regs->int_no == 13) for(;;);
 
     }
     // for (;;);

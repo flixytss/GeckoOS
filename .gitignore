@@ -9,3 +9,4 @@
 grub-modules/i386-pc
 build/
 Elf
+compile_flags.txt

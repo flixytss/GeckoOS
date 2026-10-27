@@ -1,24 +1,23 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 typedef struct TSSStruct {
-    uint32_t reserved0;
-    uint64_t rsp0;
-    uint64_t rsp1;
-    uint64_t rsp2;
-    uint64_t reserved1;
-    uint64_t ist1;
-    uint64_t ist2;
-    uint64_t ist3;
-    uint64_t ist4;
-    uint64_t ist5;
-    uint64_t ist6;
-    uint64_t ist7;
-    uint64_t reserved2;
-    uint16_t reserved3;
-    uint16_t iopb;
+    u32 reserved0;
+    u64 rsp0;
+    u64 rsp1;
+    u64 rsp2;
+    u64 reserved1;
+    u64 ist1;
+    u64 ist2;
+    u64 ist3;
+    u64 ist4;
+    u64 ist5;
+    u64 ist6;
+    u64 ist7;
+    u64 reserved2;
+    u16 reserved3;
+    u16 iopb;
 } __attribute__((packed)) TSSStruct_t;
 
 extern TSSStruct_t global_tss;

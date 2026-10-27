@@ -4,7 +4,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 #define IOAPIC_IOREGSEL 0x00
 #define IOAPIC_IOWIN    0x10
@@ -59,15 +59,15 @@
     (IOAPIC_REDTBL_DELIVERY_NMI | IOAPIC_REDTBL_TRIGGER_EDGE |                 \
      IOAPIC_REDTBL_PIN_POLARITY_ACTIVE_HIGH)
 
-int32_t init();
+i32 init();
 
-uint32_t cpuReadIoApic(void *ioapicaddr, uint32_t reg);
-void cpuWriteIoApic(void *ioapicaddr, uint32_t reg, uint32_t value);
+u32 cpuReadIoApic(void *ioapicaddr, u32 reg);
+void cpuWriteIoApic(void *ioapicaddr, u32 reg, u32 value);
 
 void ioapic_init();
 
-uint32_t ioapic_read(uint32_t reg);
-void ioapic_write(uint32_t reg, uint32_t value);
+u32 ioapic_read(u32 reg);
+void ioapic_write(u32 reg, u32 value);
 
-void ioapic_mask_irq(uint32_t irq, bool masked);
-void ioapic_redirect_irq(int gsi, int vector, uint16_t flags);
+void ioapic_mask_irq(u32 irq, bool masked);
+void ioapic_redirect_irq(int gsi, int vector, u16 flags);

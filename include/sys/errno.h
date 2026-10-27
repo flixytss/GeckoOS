@@ -63,3 +63,5 @@
         if (serrnos[-errno]) printf("%s\n", serrnos[-errno]);
     }
 #endif
+
+#define PTR_FAILED(x) ((x) <= EHWPOISON)

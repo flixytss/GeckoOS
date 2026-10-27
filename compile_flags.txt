@@ -1,2 +1,5 @@
 -Iinclude
 -DDEBUG
+-I/usr/lib/llvm/21/lib/clang/21/include
+-I/usr/local/include
+-I/usr/include

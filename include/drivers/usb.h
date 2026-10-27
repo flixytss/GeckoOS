@@ -1,8 +1,8 @@
 #pragma once
 
 #include "drivers/pci.h"
+#include "sys/types.h"
 #include <stdbool.h>
-#include <stdint.h>
 
 #define UHCICONTROLLER 1
 #define OHCICONTROLLER 2
@@ -41,87 +41,99 @@
 
 // Descriptors
 struct usb_setup_packet {
-    uint8_t requesttype;
-    uint8_t request;
-    uint16_t value;
-    uint16_t index;
-    uint16_t lenght;
+    u8 requesttype;
+    u8 request;
+    u16 value;
+    u16 index;
+    u16 lenght;
 } __attribute__((packed));
 
 struct usb_descriptor_head {
-    uint8_t bLength; // Size of this descriptor in bytes
-    uint8_t bDescriptortype; // Type of this descriptor
+    u8 bLength; // Size of this descriptor in bytes
+    u8 bDescriptortype; // Type of this descriptor
 } __attribute__((packed));
 
 // Device descriptor
 struct usb_device_descriptor {
     struct usb_descriptor_head header;
-    uint16_t bcdUSB;
-    uint8_t bDeviceclass;
-    uint8_t bSubdeviceclass;
-    uint8_t bDeviceprotocol;
-    uint8_t bMaxpacketsize;
-    uint16_t idVendor;
-    uint16_t idProduct;
-    uint16_t bcdDevice;
-    uint8_t iManufacter;
-    uint8_t iProduct;
-    uint8_t iSerialnumber;
-    uint8_t bNumConfigurations;
+    u16 bcdUSB;
+    u8 bDeviceclass;
+    u8 bSubdeviceclass;
+    u8 bDeviceprotocol;
+    u8 bMaxpacketsize;
+    u16 idVendor;
+    u16 idProduct;
+    u16 bcdDevice;
+    u8 iManufacter;
+    u8 iProduct;
+    u8 iSerialnumber;
+    u8 bNumConfigurations;
 } __attribute__((packed));
 
 // String descriptor struct
 struct usb_string_descriptor {
     struct usb_descriptor_head header;
-    uint16_t string[0xFF];
+    u16 string[0xFF];
 } __attribute__((packed));
 
 // Interface descriptor struct
 struct usb_interface_descriptor {
     struct usb_descriptor_head header;
-    uint8_t bInterfaceNumber;
-    uint8_t bAlternateSetting;
-    uint8_t bNumEndpoints;
-    uint8_t bInterfaceClass;
-    uint8_t bInterfaceSubClass;
-    uint8_t bInterfaceProtocol;
-    uint8_t iInterface;
+    u8 bInterfaceNumber;
+    u8 bAlternateSetting;
+    u8 bNumEndpoints;
+    u8 bInterfaceClass;
+    u8 bInterfaceSubClass;
+    u8 bInterfaceProtocol;
+    u8 iInterface;
 } __attribute__((packed));
 
 // Configuration descriptor struct
 struct usb_configuration_descriptor {
     struct usb_descriptor_head header;
-    uint16_t wTotalLength;
-    uint8_t bNumInterfaces;
-    uint8_t bConfigurationValue;
-    uint8_t iConfiguration;
-    uint8_t bmAttributes;
-    uint8_t bMaxPower;
+    u16 wTotalLength;
+    u8 bNumInterfaces;
+    u8 bConfigurationValue;
+    u8 iConfiguration;
+    u8 bmAttributes;
+    u8 bMaxPower;
 } __attribute__((packed));
 
 // Endpoint descriptor struct
 struct usb_endpoint_descriptor {
     struct usb_descriptor_head header;
-    uint8_t bEndpointAddress;
-    uint8_t bmAttributes;
-    uint16_t wMaxPacketSize;
-    uint8_t bInterval;
+    u8 bEndpointAddress;
+    u8 bmAttributes;
+    u16 wMaxPacketSize;
+    u8 bInterval;
 } __attribute__((packed));
 
-struct BasicUSBHeader {
+// Usb system
+struct usb_pipe {
+    struct usb_dev* device;
+    struct usb_endpoint_descriptor descriptor;
+};
+
+struct usb_header {
     struct usb_device_descriptor device_descriptor;
 
     // Arrays
     struct usb_configuration_descriptor config_descriptor[8];
-    uint8_t config_count;
-    struct usb_interface_descriptor interface[16];
-    uint8_t interfaces_count;
-    struct usb_endpoint_descriptor endpoint[20];
-    uint8_t endpoints_count;
+    u8 config_count;
 
-    struct PCIDevice* controller;
+    struct usb_interface_descriptor interface[16];
+    u8 interfaces_count;
+
+    struct usb_pipe* pipes[10];
+    struct usb_pipe* pipe_in;
+    struct usb_pipe* pipe_out;
+    u8 pipes_count;
+
+    struct dev_host_head* controller;
     void* controller_reserved; // Used by the controller
     void* user_data; // Used by HID Devices and its data
+
+    int state;
 };
 
 #define INTERRUPT_TRANSFER_INTERVAL_1MS 0
@@ -131,26 +143,37 @@ struct BasicUSBHeader {
 #define INTERRUPT_TRANSFER_INTERVAL_16MS 8
 #define INTERRUPT_TRANSFER_INTERVAL_32MS 10
 
-struct USBDevice {
-    uint8_t type;
-    struct BasicUSBHeader data;
-    bool is_hid;
-    uint8_t index;
+#define INTERRUPT_TRANFERS_DEFAULT_INTERVAL INTERRUPT_TRANSFER_INTERVAL_8MS
+#define CONTROL_TRANFERS_DEFAULT_INTERVAL   INTERRUPT_TRANSFER_INTERVAL_16MS
 
-    bool (*SendPacket)(struct BasicUSBHeader* data, struct usb_setup_packet setup_packet, void* buffer, bool no_response /* If the packet has no response */);
-    bool (*IsConnected)(struct BasicUSBHeader* data);
-    void (*InitInterruptTranfers)(struct BasicUSBHeader* data);
-    void (*SetInterruptTransfer)(struct BasicUSBHeader* data, uint8_t interval, void* buffer, uint16_t size);
+struct usb_dev {
+    struct usb_header data;
+
+    u8 hid_protocol; // set to 0 if the device isn't hid
+    u8 type;
+    char interrupt_tranfers_enabled[10];
+    u8 index;
+    bool connected : 1;
+
+    bool (*is_connected)(struct usb_dev* device);
+    void (*init_framelist)(struct usb_dev* device);
+
+    int  (*set_control_tranfer)(struct usb_dev* device, struct usb_pipe* pipe, struct usb_setup_packet setup, void* data, bool no_data);
+    int  (*set_interrupt_tranfer)(struct usb_dev* device, struct usb_pipe* pipe, void* data, u16 size); // Only support IN packets
+
+    void (*handler)(struct usb_dev* device);
 };
 
-/*
-A UHCI Controller can have 2 usbs max, so
-*/
+struct dev_host_head {
+    struct pci_dev* pci_dev;
 
-extern struct USBDevice USBDevices[16];
-extern uint8_t USBDevices_Count;
+    int  (*suspend)(struct usb_dev* device);
+};
 
-static const char* USBTypesTable[] = {
+extern struct usb_dev usb_devices[16];
+extern u8 usb_devices_count;
+
+static const char* usb_types_table[] = {
     "No type",
     "UHCI",
     "OHCI",
@@ -159,7 +182,12 @@ static const char* USBTypesTable[] = {
     "PS2" // hufdehiugdfiuh
 };
 
-bool IsHID(struct USBDevice* device);
-bool SendUSBPacket(struct USBDevice* device, struct usb_setup_packet packet, void* buffer);
-void GetUSBStringIndex(struct USBDevice device, struct usb_string_descriptor* string, uint8_t index, uint16_t langid);
-void GetUSBConfiguration(struct USBDevice* device, uint8_t configuration_index);
+// usb pipe macros
+#define PIPE_IS_READ(x) (x)->descriptor.bEndpointAddress & (1 << 7)
+#define PIPE_IS_WRITE(x) !(PIPE_IS_READ(x))
+
+int usb_is_hid(struct usb_dev* device);
+int usb_get_string(struct usb_dev* device, struct usb_string_descriptor* string, u8 index, u16 langid);
+int usb_get_configuration(struct usb_dev* device, u8 configuration_index);
+int usb_get_interface(struct usb_dev* device, u8 interface_index);
+int usb_set_address(struct usb_dev* dev, u8 address);

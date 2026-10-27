@@ -5,7 +5,7 @@
 #ifndef KB_PS2
 #define KB_PS2
 
-#include <stdint.h>
+#include "sys/types.h"
 #include <ports.h>
 #include <layouts/kb_layouts.h>
 #include <stdbool.h>

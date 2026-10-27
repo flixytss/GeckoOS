@@ -1,24 +1,24 @@
 #ifndef DRIVES_H
 #define DRIVES_H
 
-#include <stdint.h>
+#include "sys/types.h"
 #include <mem.h>
 #include <sys/types.h>
 #include <partition/partition.h>
 
 struct kdrive_t;
 
-typedef ssize_t (*kdrive_read_sectors)(struct kdrive_t *drive, size_t lba, size_t count, uint8_t *buf);
-typedef ssize_t (*kdrive_write_sectors)(struct kdrive_t *drive, size_t lba, size_t count, const uint8_t *buf);
+typedef ssize_t (*kdrive_read_sectors)(struct kdrive_t *drive, u64 lba, size_t count, u8 *buf);
+typedef ssize_t (*kdrive_write_sectors)(struct kdrive_t *drive, u64 lba, size_t count, const u8 *buf);
 
 struct kdrive_t
 {
 	char name[64];
 	char sysname[16];
 
-	uint32_t sector_size;
-	uint64_t userdata1;
-	uint32_t userdata2;
+	u32 sector_size;
+	u64 userdata1;
+	u32 userdata2;
 
 	struct partition_table_t partitions;
 	kdrive_read_sectors read;

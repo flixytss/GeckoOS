@@ -1,29 +1,29 @@
 #ifndef _ISR_H
 #define _ISR_H
 
-#include <stdint.h>
+#include "sys/types.h"
 
 typedef struct registers
 {
     /* Saved by pushaq macro (isr.s) */
-    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
-    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
+    u64 r15, r14, r13, r12, r11, r10, r9, r8;
+    u64 rbp, rdi, rsi, rdx, rcx, rbx, rax;
 
     /* Pushed by stub */
-    uint64_t int_no;
-    uint64_t err_code;
+    u64 int_no;
+    u64 err_code;
 
     /* Pushed by the CPU automatically */
-    uint64_t rip;
-    uint64_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint64_t ss;
+    u64 rip;
+    u64 cs;
+    u64 rflags;
+    u64 rsp;
+    u64 ss;
 } registers_t;
 
 typedef void (*isr_t)(registers_t*);
 
-void register_interrupt_handler(uint8_t n, isr_t handler);
+void register_interrupt_handler(u8 n, isr_t handler);
 
 // Interrupts
 #define INT_DIVIDE          0x00 // Division error

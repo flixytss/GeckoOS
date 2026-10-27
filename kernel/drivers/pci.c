@@ -1,64 +1,56 @@
 #include <drivers/interfaces/uhci.h>
 #include "drivers/mass_storage_controller/ahci.h"
 #include "drivers/ide.h"
-#include "drivers/usb.h"
-#include "drivers/vga.h"
-#include "drivers/hid/keyboard.h"
-#include "gk/gk.h"
+#include "drivers/usb/host/uhci-hcd.h"
 #include <drivers/pci.h>
 #include <drivers/e1000.h>
 #include <mem.h>
 #include <ports.h>
 #include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
+#include "drivers/pci_hcd.h"
 
 #define PCI_CFG_ADDR 0xCF8
 #define PCI_CFG_DATA 0xCFC
 
-#define PCI_DEV(devfn) ((devfn) >> 3)
-#define PCI_FN(devfn)  ((devfn) & 7)
-
-#define PCI_CLASS_NETWORK   0x02
-#define PCI_CLASS_SBC       0x0C
-
 struct pci_bus pci_root_bus;
 
-uint32_t pci_readl(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off) {
-    uint32_t addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+u32 pci_readl(u32 bus, u32 slot, u32 func, u8 off) {
+    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
     return inl(PCI_CFG_DATA);
 }
 
-uint16_t pci_readw(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off) {
-    uint32_t addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+u16 pci_readw(u32 bus, u32 slot, u32 func, u8 off) {
+    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
-    return (uint16_t)((inl(PCI_CFG_DATA) >> ((off & 2) * 8)) & 0xffff);
+    return (u16)((inl(PCI_CFG_DATA) >> ((off & 2) * 8)) & 0xffff);
 }
 
-uint8_t pci_readb(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off) {
-    uint32_t v = pci_readl(bus, slot, func, off & ~3);
+u8 pci_readb(u32 bus, u32 slot, u32 func, u8 off) {
+    u32 v = pci_readl(bus, slot, func, off & ~3);
     return (v >> ((off & 3) * 8)) & 0xff;
 }
 
-void pci_writel(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint32_t data) {
-    uint32_t addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+void pci_writel(u32 bus, u32 slot, u32 func, u32 off, u32 data) {
+    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
     outl(PCI_CFG_DATA, data);
 }
 
-void pci_writew(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint16_t data) {
-    uint32_t align = off & ~3;
-    uint32_t o     = pci_readl(bus, slot, func, align);
-    uint8_t  shift = (off & 2) * 8;
-    pci_writel(bus, slot, func, align, (o & ~(0xffff << shift)) | ((uint32_t)data << shift));
+void pci_writew(u32 bus, u32 slot, u32 func, u32 off, u16 data) {
+    u32 align = off & ~3;
+    u32 o     = pci_readl(bus, slot, func, align);
+    u8  shift = (off & 2) * 8;
+    pci_writel(bus, slot, func, align, (o & ~(0xffff << shift)) | ((u32)data << shift));
 }
 
-void pci_writeb(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint8_t data) {
-    uint32_t align = off & ~3;
-    uint32_t o     = pci_readl(bus, slot, func, align);
-    uint8_t  shift = (off & 3) * 8;
-    pci_writel(bus, slot, func, align, (o & ~(0xff << shift)) | ((uint32_t)data << shift));
+void pci_writeb(u32 bus, u32 slot, u32 func, u32 off, u8 data) {
+    u32 align = off & ~3;
+    u32 o     = pci_readl(bus, slot, func, align);
+    u8  shift = (off & 3) * 8;
+    pci_writel(bus, slot, func, align, (o & ~(0xff << shift)) | ((u32)data << shift));
 }
 
 #define PCI_CLASSES_NUM 120
@@ -85,13 +77,13 @@ const char* pci_classes[PCI_CLASSES_NUM] = {
     "Non-Essential Instrumentation"
 };
 
-static const char *class2str(uint8_t class) {
+static const char *class2str(u8 class) {
     if (class > PCI_CLASSES_NUM || class < 0) return "Unknown";
     return pci_classes[class];
 }
 
 #ifdef DEBUG
-    static const char *progif2usbcontroller(uint8_t progif) {
+    static const char *progif2usbcontroller(u8 progif) {
         switch (progif) {
             case 0x00: return "UHCI Controller";
             case 0x10: return "OHCI Controller";
@@ -105,7 +97,7 @@ static const char *class2str(uint8_t class) {
 #endif
 
 #ifdef DEBUG
-    const char *nic_vendor_str(uint16_t vendor) {
+    const char *nic_vendor_str(u16 vendor) {
         switch (vendor) {
             case 0x8086: return "Intel";
             case 0x10EC: return "Realtek";
@@ -115,7 +107,7 @@ static const char *class2str(uint8_t class) {
         } return NULL;
     }
 
-    static const char *nic_model_str(uint16_t vendor, uint16_t device) {
+    static const char *nic_model_str(u16 vendor, u16 device) {
         switch (vendor) {
             case 0x8086:
                 switch (device) {
@@ -173,8 +165,8 @@ static void alloc_new_bus(struct pci_bus *parent, struct pci_dev *self) {
     enumerate_pcibus(child);
 }
 
-uint8_t enumerate_pcidev(struct pci_bus *parent, uint8_t dev, uint8_t func) {
-    uint32_t tmp = pci_readl(parent->primary, dev, func,
+u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func) {
+    u32 tmp = pci_readl(parent->primary, dev, func,
                              offsetof(struct pci_common_hdr, vendid));
 
     if (tmp == 0xffffffff)
@@ -182,7 +174,7 @@ uint8_t enumerate_pcidev(struct pci_bus *parent, uint8_t dev, uint8_t func) {
 
     struct pci_dev *pci_dev = kmalloc(sizeof(*pci_dev));
 
-    uint8_t htype = pci_readb(parent->primary, dev, func,
+    u8 htype = pci_readb(parent->primary, dev, func,
                               offsetof(struct pci_hdr, common.htype));
 
     pci_dev->bus     = parent;
@@ -211,9 +203,9 @@ uint8_t enumerate_pcidev(struct pci_bus *parent, uint8_t dev, uint8_t func) {
 }
 
 void enumerate_pcibus(struct pci_bus *bus) {
-    for (uint8_t device = 0; device < 32; device++) {
-        for (uint8_t fn = 0; fn < 8; fn++) {
-            uint8_t htype = pci_readb(bus->primary, device, fn,
+    for (u8 device = 0; device < 32; device++) {
+        for (u8 fn = 0; fn < 8; fn++) {
+            u8 htype = pci_readb(bus->primary, device, fn,
                                       offsetof(struct pci_hdr, common.htype));
             if (htype == 0xff)
                 break;
@@ -260,24 +252,24 @@ static void walk_buses(struct pci_bus *start, void (*cb)(struct pci_dev *)) {
 }
 
 // Helpers
-uint32_t PciRead(struct PCIDevice device, uint8_t off) { // A wrapper for pci_readl
+u32 PciRead(struct pci_device_shortcut device, u8 off) { // A wrapper for pci_readl
     return pci_readl(device.bus, device.slot, device.func, off);
 }
-void PciWrite(struct PCIDevice device, uint8_t off, uint32_t data) { // A wrapper for pci_writel
+void PciWrite(struct pci_device_shortcut device, u8 off, u32 data) { // A wrapper for pci_writel
     pci_writel(device.bus, device.slot, device.func, off, data);
 }
 
 static void lspci_cb(struct pci_dev *dev) {
     #ifdef DEBUG
-        uint8_t subclass = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.subclass));
-        uint8_t progif = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.prog_if));
+        u8 subclass = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.subclass));
+        u8 progif = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.prog_if));
 
         if (subclass == 0x3) {
             printf("%02x:%02x.%d %s (%s) (Subclass: 0x%X, ProgIF: 0x%X)\n",
                 dev->bus->primary,
                 PCI_DEV(dev->devfn),
                 PCI_FN(dev->devfn),
-                class2str((uint8_t)dev->class),
+                class2str((u8)dev->class),
                 progif2usbcontroller(progif),
                 subclass,
                 progif);
@@ -286,7 +278,7 @@ static void lspci_cb(struct pci_dev *dev) {
                 dev->bus->primary,
                 PCI_DEV(dev->devfn),
                 PCI_FN(dev->devfn),
-                class2str((uint8_t)dev->class),
+                class2str((u8)dev->class),
                 subclass,
                 progif);
     #else
@@ -303,11 +295,12 @@ void pci_lspci() {
 }
 
 static void pci_filter(struct pci_dev *dev) {
-    uint8_t bus  = dev->bus->primary;
-    uint8_t slot = PCI_DEV(dev->devfn);
-    uint8_t fn   = PCI_FN(dev->devfn);
-    uint8_t subclass = pci_readb(bus, slot, fn,
+    u8 bus  = dev->bus->primary;
+    u8 slot = PCI_DEV(dev->devfn);
+    u8 fn   = PCI_FN(dev->devfn);
+    u8 subclass = pci_readb(bus, slot, fn,
                             offsetof(struct pci_hdr, common.subclass));
+    u8 progif = pci_readb(bus, slot, fn, offsetof(struct pci_hdr, common.prog_if));
 
     switch (dev->class & 0xFF) {
         case PCI_CLASS_NETWORK:
@@ -328,50 +321,19 @@ static void pci_filter(struct pci_dev *dev) {
                 e1000_init(bus, slot, fn);
             break;
         case PCI_CLASS_SBC:
-            uint8_t ProgIF = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn),
-                                            offsetof(struct pci_hdr, common.prog_if));
             if (subclass != 0x3) break; // Support only for USB controllers
+            // dev->irq = pci_readb(bus, slot, fn, offsetof(struct pci_hdr, common.prog_if));
 
-            switch (ProgIF) {
+            pci_dev_disable_bios(dev);
+            pci_dev_enable_busmastering(dev);
+
+            switch (progif) {
                 case 0x0: // UHCI
                     #ifdef DEBUG
                         printf("  [%02x:%02x.%d] UHCI Controller\n",
                             bus, slot, fn);
                     #endif
-                    struct USBDevice* devices = uhci_init((struct PCIDevice){bus, slot, fn}); // Devices returned from the uhci controller
-
-                    if (!devices) {
-                        printc("UHCI Controller initialization failed!\n", VGA_COLOR_RED);
-                        break;
-                    }
-
-                    for (int i = 0; i < 2; i++) { // That array has the size of 2 usbdevices, because uhci have 2 ports
-                        if (!devices[i].data.controller) continue;
-                        devices[i].index = USBDevices_Count;
-                        USBDevices[USBDevices_Count++] = devices[i];
-
-                        struct USBDevice* device = &USBDevices[USBDevices_Count - 1];
-
-                        device->InitInterruptTranfers(&device->data);
-
-                        for (int x = 0; x < device->data.device_descriptor.bNumConfigurations + 1; x++)
-                            GetUSBConfiguration(&USBDevices[USBDevices_Count - 1], x);
-
-                        device->is_hid = IsHID(&USBDevices[USBDevices_Count - 1]);
-                        if (device->is_hid) {
-                            SetProtocol(*device, BOOT_PROTOCOL); // The device will explode if that protocol isn't supported
-                            
-                            // Detect if the device is a mouse or a keyboard by its protocol value
-                            #define KEYBOARD_PROTOCOL 1
-                            #define MOUSE_PROTOCOL 2
-
-                            if (device->data.interface[0].bInterfaceProtocol == KEYBOARD_PROTOCOL) {
-                                HIDKeyboardInit(device);
-                            } else if (device->data.interface[0].bInterfaceProtocol == MOUSE_PROTOCOL) {
-                                // Nothing...
-                            }
-                        }
-                    }
+                    uhci_start(uhci_create(dev));
                     printf("\n");
                     break;
                 case 0x10: // OHCI
@@ -394,13 +356,13 @@ static void pci_filter(struct pci_dev *dev) {
                     printf("  [%02x:%02x.%d] AHCI Controller\n",
                         bus, slot, fn);
                 #endif
-                ahci_init((struct PCIDevice){bus, slot, fn});
+                ahci_init((struct pci_device_shortcut){bus, slot, fn});
             } else if (subclass == 0x01) {
                 #ifdef DEBUG
-                    printf("  [%02x:%02x.%d] IDE Controller %d %d\n",
-                        bus, slot, fn, pci_readb(bus, slot, fn, 0x3C), pci_readb(bus, slot, fn, 0x3D));
+                    printf("  [%02x:%02x.%d] IDE Controller\n",
+                        bus, slot, fn);
                 #endif
-                
+
                 ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
             }
             break;
@@ -414,17 +376,6 @@ void pci_detect_controllers() {
     walk_buses(&pci_root_bus, pci_filter);
 }
 
-IOBar PCIGetIOBar(struct PCIDevice device, uint8_t which) { // Returns 0 if the wanted bar is a memory space bar
-    // If you want a bar that goes out of bounds, you will get straight shi
-    uint8_t reg = BAR0_OFF + (BAR_SIZE * which);
-
-    uint32_t bar = PciRead(device, reg);
-    return (bar & 0x1) ? bar : 0;
-}
-IOBar PCIGetMemorySpaceBar(struct PCIDevice device, uint8_t which) { // Returns 0 if the wanted bar is a IO bar
-    // If you want a bar that goes out of bounds, you will get straight shi
-    uint8_t reg = BAR0_OFF + (BAR_SIZE * which);
-
-    uint32_t bar = PciRead(device, reg);
-    return (bar & 0x1) ? 0 : bar;
+u32 pci_get_bar(u32 bus, u32 slot, u32 func, u8 index) {
+    return pci_readl(bus, slot, func, BAR0_OFF + (BAR_SIZE * index));
 }

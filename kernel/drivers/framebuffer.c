@@ -1,15 +1,15 @@
 #include <drivers/framebuffer.h>
 #include <fonts/font8x16.h>
 #include <mem.h>
-#include <stdint.h>
+#include "sys/types.h"
 
-uint64_t fb_base_addr;
-uint32_t fb_width;
-uint32_t fb_height;
-uint32_t fb_pitch;
-uint8_t  fb_bpp;
+u64 fb_base_addr;
+u32 fb_width;
+u32 fb_height;
+u32 fb_pitch;
+u8  fb_bpp;
 
-void fb_init(uint64_t addr, uint32_t width, uint32_t height, uint32_t pitch, uint8_t bpp)
+void fb_init(u64 addr, u32 width, u32 height, u32 pitch, u8 bpp)
 {
     fb_base_addr = addr;
     fb_width     = width;
@@ -18,30 +18,30 @@ void fb_init(uint64_t addr, uint32_t width, uint32_t height, uint32_t pitch, uin
     fb_bpp       = bpp;
 }
 
-void fb_draw_pixel(uint32_t x, uint32_t y, uint32_t color)
+void fb_draw_pixel(u32 x, u32 y, u32 color)
 {
     if (x >= fb_width || y >= fb_height) {
         return;
     }
-    volatile uint32_t *pixel = (volatile uint32_t *)(fb_base_addr + (uint64_t)y * fb_pitch);
+    volatile u32 *pixel = (volatile u32 *)(fb_base_addr + (u64)y * fb_pitch);
     pixel[x] = color;
 }
 
-void fb_draw_char(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg)
+void fb_draw_char(u32 x, u32 y, char c, u32 fg, u32 bg)
 {
     unsigned char uc = (unsigned char)c;
     const unsigned char *glyph = &font8x16[uc][0];
 
-    for (uint32_t row = 0; row < 16; row++) {
+    for (u32 row = 0; row < 16; row++) {
         unsigned char line = glyph[row];
-        for (uint32_t col = 0; col < 8; col++) {
-            uint32_t px = x + col;
-            uint32_t py = y + row;
+        for (u32 col = 0; col < 8; col++) {
+            u32 px = x + col;
+            u32 py = y + row;
             if (px >= fb_width || py >= fb_height) {
                 continue;
             }
-            uint32_t color = (line & (0x80 >> col)) ? fg : bg;
-            volatile uint32_t *pixel = (volatile uint32_t *)(fb_base_addr + (uint64_t)py * fb_pitch);
+            u32 color = (line & (0x80 >> col)) ? fg : bg;
+            volatile u32 *pixel = (volatile u32 *)(fb_base_addr + (u64)py * fb_pitch);
             pixel[px] = color;
         }
     }
@@ -49,23 +49,23 @@ void fb_draw_char(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg)
 
 void fb_scroll(void)
 {
-    uint64_t bytes_per_row = fb_pitch;
-    uint64_t scroll_bytes  = (uint64_t)16 * bytes_per_row;
-    uint64_t total_bytes   = (uint64_t)fb_height * bytes_per_row;
+    u64 bytes_per_row = fb_pitch;
+    u64 scroll_bytes  = (u64)16 * bytes_per_row;
+    u64 total_bytes   = (u64)fb_height * bytes_per_row;
 
     memmove((void *)fb_base_addr,
             (void *)(fb_base_addr + scroll_bytes),
             total_bytes - scroll_bytes);
 
-    uint64_t clear_start = total_bytes - scroll_bytes;
+    u64 clear_start = total_bytes - scroll_bytes;
     memset((void *)(fb_base_addr + clear_start), 0, scroll_bytes);
 }
 
-void fb_clear(uint32_t color)
+void fb_clear(u32 color)
 {
-    uint64_t total_pixels = (uint64_t)fb_height * (fb_pitch / 4);
-    volatile uint32_t *buf = (volatile uint32_t *)fb_base_addr;
-    for (uint64_t i = 0; i < total_pixels; i++) {
+    u64 total_pixels = (u64)fb_height * (fb_pitch / 4);
+    volatile u32 *buf = (volatile u32 *)fb_base_addr;
+    for (u64 i = 0; i < total_pixels; i++) {
         buf[i] = color;
     }
 }

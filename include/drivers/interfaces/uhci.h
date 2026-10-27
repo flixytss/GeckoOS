@@ -4,7 +4,7 @@
 #include "drivers/pci.h"
 #include "drivers/usb.h"
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 #define USBCMD  0x00 // USB Command
 #define USBSTS  0x02 // USB Status
@@ -58,31 +58,18 @@
 #define HEADER_TYPE_OUT 0xE1
 #define HEADER_TYPE_SETUP 0x2D
 
-typedef uint32_t FrameEntry;
+#define UHCI_PORT_NODEV 0xffffffffffffffff
 
-struct UHCIQueueHead {
-    uint32_t horizontal_pointer;
-    uint32_t vertical_pointer;
-} __attribute__((packed));
+typedef u32 frame_entry;
 
-struct UHCITransferDescriptor {
-    volatile uint32_t next;
-    volatile uint32_t status;
-    volatile uint32_t packet_header;
-    volatile uint32_t buffer;
-    uint8_t pad[16];
-} __attribute__((packed));
+struct uhci_dev {
+    struct dev_host_head header;
+    frame_entry* framelist;
+    struct uhci_qh* qhpool;
+    struct uhci_td* tdpool;
 
-struct UHCIDevice {
-    struct PCIDevice device;
-    FrameEntry* framelist;
-    struct UHCIQueueHead* qhpool;
-    struct UHCITransferDescriptor* tdpool;
-    uint16_t ioport;
-    uint16_t max_packet_size;
-    uint8_t device_address;
+    u16 ioport;
+    u8 dead : 1;
 };
 
-struct USBDevice* uhci_init(struct PCIDevice device);
-
-// bool GetUHCIDescriptor(struct UHCIDevice* controller, struct usb_setup_packet setup, void* buffer, bool wait, bool twice);
+int uhci_pci_driver_init(struct pci_dev* dev);

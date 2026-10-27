@@ -1,7 +1,7 @@
 #pragma once
 #include "arch/x86_64/isr.h"
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 //The numbers, Mason what do they mean?
 #define LAPIC_REG_ID        0x020 // Local APIC ID
@@ -31,24 +31,24 @@
 #define lAPIC_ICR_LOW_DEST_OFFSET		18
 #define LAPIC_IPI_LOW 0x000C4500;//low 32bits for initializing cores 
 
-void cpu_set_apic_base(uint64_t apic);
-uint64_t cpu_get_apic_base(void);
+void cpu_set_apic_base(u64 apic);
+u64 cpu_get_apic_base(void);
 
-static inline uint64_t rdmsr(uint32_t msr);
-static inline void wrmsr(uint32_t msr, uint64_t value);
+static inline u64 rdmsr(u32 msr);
+static inline void wrmsr(u32 msr, u64 value);
 // Checking which type of apic exists
 bool cpu_has_apic();
 bool cpu_has_x2apic();
-volatile uint32_t *get_lapic_base();
+volatile u32 *get_lapic_base();
 // Initializing the local apic
 int lapic_init();
 void lapic_start_cores();
 
-uint32_t lapic_get_id(void);
-void lapic_write(uint32_t reg, uint32_t value);
-uint32_t lapic_read(uint32_t reg);
+u32 lapic_get_id(void);
+void lapic_write(u32 reg, u32 value);
+u32 lapic_read(u32 reg);
 void lapic_timer_start(void);
-extern volatile uint64_t lapic_timer_tick;
+extern volatile u64 lapic_timer_tick;
 void lapic_timer_handler(registers_t *regs);
 
-void lapic_timer_wait(uint64_t ticks);
+void lapic_timer_wait(u64 ticks);

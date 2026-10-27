@@ -5,8 +5,7 @@
 #define _MEM_H
 //idk but they say aligning is important
 #include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 #define ALIGN8(x) (((x) + 7) & ~7)
 #define ALIGN4M(x) (((x) + 4095) & ~4095)
@@ -20,7 +19,7 @@
 
 typedef struct block block;
 struct block{
-    // uint32_t magic; // Who need magic numbers
+    // u32 magic; // Who need magic numbers
     size_t size;
     bool free;
     block* next;
@@ -34,10 +33,13 @@ void* memset(void* dest, int val, unsigned long n);
 //helper functions to allocate memory
 static block* create_block(unsigned long size, size_t alignment);
 
-void kalloc_init(uint64_t start, uint64_t size);
+void kalloc_init(u64 start, u64 size);
 void* kmalloc(unsigned long size);
 void* realloc(void* p, size_t size);
 void* kmalloc_align(unsigned long size, size_t alignment);
+
+// DMA
+void* dma_create_pool(u64 size, u64 n, u32 alignment);
 
 void dump_heap();
 
@@ -45,10 +47,10 @@ void kfree(void* p);
 void combine_blocks();
 //Pumpkicks
 int strlen(char* ptr);
-uint8_t strncmp(const char *s1, const char *s2, size_t siz);
-uint8_t strcmp(const char *s, const char *d);
-uint8_t strcasecmp(const char *s, const char *d);
-uint8_t dlim(char c, const char *delim);
+u8 strncmp(const char *s1, const char *s2, size_t siz);
+u8 strcmp(const char *s, const char *d);
+u8 strcasecmp(const char *s, const char *d);
+u8 dlim(char c, const char *delim);
 char *strtok_r(char *restrict str, const char *restrict delim, char **saveptr);
 char *strtok(char *restrict str, const char *restrict delim);
 void strncpy(char *restrict dst, const char *restrict src, size_t siz);

@@ -1,29 +1,26 @@
-#include "drivers/hid/keyboard.h"
 #include "drivers/vga.h"
-#include "terminal/printf.h"
 #include <drivers/framebuffer.h>
 #include <drivers/ps2keyboard.h>
 #include <drivers/ps2mouse.h>
 #include <gk/gk.h>
 #include <mem.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/terminal.h>
 #include <drivers/input.h>
 
-extern uint64_t g_fb_addr;
-extern uint32_t g_fb_width;
-extern uint32_t g_fb_height;
-extern uint32_t g_fb_pitch;
-extern uint8_t  g_fb_bpp;
+extern u64 g_fb_addr;
+extern u32 g_fb_width;
+extern u32 g_fb_height;
+extern u32 g_fb_pitch;
+extern u8  g_fb_bpp;
 
 #define FONT_WIDTH  8
 #define FONT_HEIGHT 16
 
-static uint32_t cursor_x = 0;
+static u32 cursor_x = 0;
 
-static uint32_t fb_cols;
-static uint32_t fb_rows;
+static u32 fb_cols;
+static u32 fb_rows;
 
 static void fb_update_dims(void)
 {
@@ -31,7 +28,7 @@ static void fb_update_dims(void)
     fb_rows = g_fb_height / FONT_HEIGHT;
 }
 
-static const uint32_t vga_to_rgb[16] = {
+static const u32 vga_to_rgb[16] = {
     0x00000000,
     0x000000AA,
     0x0000AA00,
@@ -50,47 +47,47 @@ static const uint32_t vga_to_rgb[16] = {
     0x00FFFFFF,
 };
 
-static uint32_t vga_fg_to_rgb(uint8_t color)
+static u32 vga_fg_to_rgb(u8 color)
 {
     return vga_to_rgb[color & 0xF];
 }
 
-static uint32_t vga_bg_to_rgb(uint8_t color)
+static u32 vga_bg_to_rgb(u8 color)
 {
     return vga_to_rgb[(color >> 4) & 0xF];
 }
 
-static void fb_draw_cursor_block(uint32_t cx, uint32_t cy, uint32_t bg)
+static void fb_draw_cursor_block(u32 cx, u32 cy, u32 bg)
 {
-    for (uint32_t row = 0; row < FONT_HEIGHT; row++) {
-        for (uint32_t col = 0; col < FONT_WIDTH; col++) {
-            uint32_t px = cx * FONT_WIDTH + col;
-            uint32_t py = cy * FONT_HEIGHT + row;
+    for (u32 row = 0; row < FONT_HEIGHT; row++) {
+        for (u32 col = 0; col < FONT_WIDTH; col++) {
+            u32 px = cx * FONT_WIDTH + col;
+            u32 py = cy * FONT_HEIGHT + row;
             if (px >= g_fb_width || py >= g_fb_height) {
                 continue;
             }
-            uint32_t color = (row >= FONT_HEIGHT - 2) ? 0x00FFFFFF : bg;
-            volatile uint32_t *pixel = (volatile uint32_t *)(g_fb_addr + (uint64_t)py * g_fb_pitch);
+            u32 color = (row >= FONT_HEIGHT - 2) ? 0x00FFFFFF : bg;
+            volatile u32 *pixel = (volatile u32 *)(g_fb_addr + (u64)py * g_fb_pitch);
             pixel[px] = color;
         }
     }
 }
 
-uint16_t terminal_column = 0;
-uint16_t terminal_row    = 0;
+u16 terminal_column = 0;
+u16 terminal_row    = 0;
 static int history_count = 0;
 static int history_head  = 0;
 
 static bool follow_output = true;
 
-void putchar(char c, uint8_t color)
+void putchar(char c, u8 color)
 {
     if (fb_cols == 0) {
         fb_update_dims();
     }
 
-    uint32_t fg = vga_fg_to_rgb(color);
-    uint32_t bg = vga_bg_to_rgb(color);
+    u32 fg = vga_fg_to_rgb(color);
+    u32 bg = vga_bg_to_rgb(color);
 
     if (c == 0) {
         return;
@@ -98,7 +95,7 @@ void putchar(char c, uint8_t color)
 
     if (c == '\n') {
         /* Blank the rest of this history row so render_viewport is clean */
-        for (uint32_t k = cursor_x; k < fb_cols && k < VGA_TEXT_WIDTH; k++) {
+        for (u32 k = cursor_x; k < fb_cols && k < VGA_TEXT_WIDTH; k++) {
             console_history[total_lines][k] = vga_entry(' ', color);
         }
         cursor_x = 0;
@@ -144,7 +141,7 @@ void putchar(char c, uint8_t color)
             viewport_top = new_top;
             screen_row   = (int)total_lines - viewport_top;
             render_viewport();
-            terminal_row    = (uint16_t)(total_lines - viewport_top);
+            terminal_row    = (u16)(total_lines - viewport_top);
             terminal_column = cursor_x;
             return;
         }
@@ -154,28 +151,28 @@ void putchar(char c, uint8_t color)
     if (screen_row >= 0 && screen_row < (int)fb_rows) {
         if (c == '\b') {
             fb_draw_char(cursor_x * FONT_WIDTH,
-                         (uint32_t)screen_row * FONT_HEIGHT,
+                         (u32)screen_row * FONT_HEIGHT,
                          ' ', fg, bg);
         } else if (c != '\n') {
-            uint32_t draw_col = cursor_x > 0 ? cursor_x - 1 : 0;
+            u32 draw_col = cursor_x > 0 ? cursor_x - 1 : 0;
             fb_draw_char(draw_col * FONT_WIDTH,
-                         (uint32_t)screen_row * FONT_HEIGHT,
+                         (u32)screen_row * FONT_HEIGHT,
                          c, fg, bg);
         }
     }
 
-    terminal_row    = (uint16_t)(total_lines - viewport_top);
+    terminal_row    = (u16)(total_lines - viewport_top);
     terminal_column = cursor_x;
 }
 
-void write(char *data, size_t size, uint8_t COLOR)
+void write(char *data, size_t size, u8 COLOR)
 {
     for (int i = 0; i < size; i++) {
         putchar(data[i], COLOR);
     }
 }
 
-void printc(char *data, uint8_t COLOR)
+void printc(char *data, u8 COLOR)
 {
     for (size_t i = 0; data[i]; i++) {
         putchar(data[i], COLOR);
@@ -200,11 +197,11 @@ void render_viewport()
 {
     for (size_t y = 0; y < fb_rows && (size_t)(viewport_top + y) < SCROLLBACK_LINES; y++) {
         for (size_t x = 0; x < fb_cols; x++) {
-            uint16_t entry = console_history[viewport_top + y][x];
+            u16 entry = console_history[viewport_top + y][x];
             char c = (char)(entry & 0xFF);
-            uint8_t color = (uint8_t)(entry >> 8);
-            uint32_t fg = vga_fg_to_rgb(color);
-            uint32_t bg = vga_bg_to_rgb(color);
+            u8 color = (u8)(entry >> 8);
+            u32 fg = vga_fg_to_rgb(color);
+            u32 bg = vga_bg_to_rgb(color);
             fb_draw_char(x * FONT_WIDTH, y * FONT_HEIGHT, c, fg, bg);
         }
     }
@@ -230,12 +227,12 @@ void scroll_down()
         viewport_top++;
 }
 
-void terminal_clear(uint8_t color)
+void terminal_clear(u8 color)
 {
-    uint32_t bg = vga_bg_to_rgb(color);
+    u32 bg = vga_bg_to_rgb(color);
     fb_clear(bg);
 
-    uint16_t blank = vga_entry(' ', color);
+    u16 blank = vga_entry(' ', color);
     for (size_t y = 0; y < SCROLLBACK_LINES; y++) {
         for (size_t x = 0; x < VGA_TEXT_WIDTH; x++) {
             console_history[y][x] = blank;
@@ -262,7 +259,7 @@ static void history_push(unsigned char *buf)
         history_count++;
 }
 
-void input(unsigned char *buff, size_t buffer_size, uint8_t color)
+void input(unsigned char *buff, size_t buffer_size, u8 color)
 {
     size_t buff_count  = 0;
     size_t start_x     = cursor_x;
@@ -374,22 +371,22 @@ void draw_cursor(int x, int y, int visible)
 {
     if (visible) {
         if (cursor.is_drawn) {
-            uint32_t old_cx = cursor.x;
-            uint32_t old_cy = cursor.y;
-            uint16_t old_entry = console_history[viewport_top + old_cy][old_cx];
+            u32 old_cx = cursor.x;
+            u32 old_cy = cursor.y;
+            u16 old_entry = console_history[viewport_top + old_cy][old_cx];
             char old_c = (char)(old_entry & 0xFF);
-            uint8_t old_color = (uint8_t)(old_entry >> 8);
-            uint32_t fg = vga_fg_to_rgb(old_color);
-            uint32_t bg = vga_bg_to_rgb(old_color);
+            u8 old_color = (u8)(old_entry >> 8);
+            u32 fg = vga_fg_to_rgb(old_color);
+            u32 bg = vga_bg_to_rgb(old_color);
             fb_draw_char(old_cx * FONT_WIDTH, old_cy * FONT_HEIGHT, old_c, fg, bg);
             cursor.is_drawn = 0;
         }
 
-        uint32_t cx = x;
-        uint32_t cy = y;
-        uint16_t entry = console_history[viewport_top + cy][cx];
-        uint8_t old_color = (uint8_t)(entry >> 8);
-        uint32_t bg = vga_bg_to_rgb(old_color);
+        u32 cx = x;
+        u32 cy = y;
+        u16 entry = console_history[viewport_top + cy][cx];
+        u8 old_color = (u8)(entry >> 8);
+        u32 bg = vga_bg_to_rgb(old_color);
 
         fb_draw_cursor_block(cx, cy, bg);
 
@@ -398,13 +395,13 @@ void draw_cursor(int x, int y, int visible)
         cursor.is_drawn = 1;
     } else {
         if (cursor.is_drawn) {
-            uint32_t cx = cursor.x;
-            uint32_t cy = cursor.y;
-            uint16_t entry = console_history[viewport_top + cy][cx];
+            u32 cx = cursor.x;
+            u32 cy = cursor.y;
+            u16 entry = console_history[viewport_top + cy][cx];
             char c = (char)(entry & 0xFF);
-            uint8_t color = (uint8_t)(entry >> 8);
-            uint32_t fg = vga_fg_to_rgb(color);
-            uint32_t bg = vga_bg_to_rgb(color);
+            u8 color = (u8)(entry >> 8);
+            u32 fg = vga_fg_to_rgb(color);
+            u32 bg = vga_bg_to_rgb(color);
             fb_draw_char(cx * FONT_WIDTH, cy * FONT_HEIGHT, c, fg, bg);
             cursor.is_drawn = 0;
         }
@@ -420,16 +417,16 @@ void add_to_history(void)
     }
 
     for (size_t x = 0; x < fb_cols && x < VGA_TEXT_WIDTH; x++) {
-        uint32_t px = x * FONT_WIDTH;
-        uint32_t py = 0;
+        u32 px = x * FONT_WIDTH;
+        u32 py = 0;
         unsigned char glyph_line = 0;
 
-        uint16_t entry = 0;
-        for (uint32_t col = 0; col < FONT_WIDTH; col++) {
+        u16 entry = 0;
+        for (u32 col = 0; col < FONT_WIDTH; col++) {
             if (px + col >= g_fb_width || py >= g_fb_height) {
                 continue;
             }
-            volatile uint32_t *pixel = (volatile uint32_t *)(g_fb_addr + (uint64_t)py * g_fb_pitch);
+            volatile u32 *pixel = (volatile u32 *)(g_fb_addr + (u64)py * g_fb_pitch);
             if (pixel[px + col] != 0) {
                 glyph_line |= (0x80 >> col);
             }

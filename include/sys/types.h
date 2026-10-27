@@ -23,9 +23,6 @@
 #ifndef _SYS_TYPES_H
 #define _SYS_TYPES_H 1
 
-#include <stddef.h>   /* size_t, ptrdiff_t */
-#include <stdint.h>   /* uint*_t, int*_t   */
-
 /* ssize_t: signed counterpart of size_t */
 #ifndef __ssize_t_defined
 typedef long ssize_t;
@@ -42,5 +39,48 @@ typedef long long off_t;
 typedef int  pid_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
+
+typedef unsigned char      u8;
+typedef char               i8;
+typedef unsigned int       u32;
+typedef int                i32;
+typedef unsigned long long u64;
+typedef long long          i64;
+typedef unsigned short     u16;
+typedef short              i16;
+
+#ifndef _UINTPTR_T
+typedef __UINTPTR_TYPE__ uintptr_t;
+#define _UINTPTR_T
+#endif
+
+#ifndef _INTPTR_T
+#ifndef __intptr_t_defined
+typedef __INTPTR_TYPE__ intptr_t;
+#define __intptr_t_defined
+#define _INTPTR_T
+#endif
+#endif
+
+typedef unsigned long size_t;
+typedef long          ptrdiff_t;
+
+typedef __INTMAX_TYPE__  intmax_t;
+typedef __UINTMAX_TYPE__ uintmax_t;
+
+typedef unsigned char      uint_fast8_t;
+typedef char               int_fast8_t;
+typedef unsigned int       uint_fast32_t;
+typedef int                int_fast32_t;
+typedef unsigned long long uint_fast64_t;
+typedef long long          int_fast64_t;
+typedef unsigned short     uint_fast16_t;
+typedef short              int_fast16_t;
+
+#define UINT32_C(x) ((u32)x)
+
+#define NULL ((void*)0)
+
+#define U64_MAX 
 
 #endif /* _SYS_TYPES_H */

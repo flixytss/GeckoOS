@@ -5,12 +5,12 @@
 #include <drivers/e1000.h>
 #include <mem.h>
 
-uint32_t net_ip;
-uint32_t net_gateway;
-uint32_t net_subnet;
-uint8_t  net_mac[6];
+u32 net_ip;
+u32 net_gateway;
+u32 net_subnet;
+u8  net_mac[6];
 
-static uint8_t tx_buf[2048];
+static u8 tx_buf[2048];
 
 void net_init(void) {
     net_ip      = IP(10, 0, 2, 15);
@@ -19,7 +19,7 @@ void net_init(void) {
     e1000_get_mac(net_mac);
 }
 
-void net_send_frame(uint8_t dst_mac[6], uint16_t ether_type, const void *payload, uint16_t len) {
+void net_send_frame(u8 dst_mac[6], u16 ether_type, const void *payload, u16 len) {
     eth_frame_t *frame = (eth_frame_t *)tx_buf;
     for (int i = 0; i < 6; i++) {
         frame->dst[i] = dst_mac[i];
@@ -30,11 +30,11 @@ void net_send_frame(uint8_t dst_mac[6], uint16_t ether_type, const void *payload
     e1000_send(frame, sizeof(eth_frame_t) + len);
 }
 
-void net_handle_packet(uint8_t *data, uint16_t len) {
+void net_handle_packet(u8 *data, u16 len) {
     if (len < sizeof(eth_frame_t)) return;
 
     eth_frame_t *frame = (eth_frame_t *)data;
-    uint16_t type = __builtin_bswap16(frame->ether_type);
+    u16 type = __builtin_bswap16(frame->ether_type);
 
     int for_us = 1;
     for (int i = 0; i < 6; i++) {

@@ -1,12 +1,13 @@
 #include "drivers/vga.h"
 #include "fs/vfs.h"
+#include "mem.h"
 #include "terminal/terminal.h"
 #include "terminal/printf.h"
 #include "sys/errno.h"
 #include <fs/fat32.h>
 #include <fs/fs.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/limits.h"
+#include "sys/types.h"
 
 struct drive_fs_t* fss[16];
 int actual_fs = 0;
@@ -17,7 +18,7 @@ struct drive_fs_t *fs_drive_open( struct kdrive_t *drive, struct drive_fs_t* fs 
 
 	part.type = FS_FAT32;
 	part.lba = 0;
-	part.size = SIZE_MAX;
+	part.size = ULONG_LONG_MAX;
 	return fs_partition_open(drive, &part, fs);
 }
 
@@ -27,7 +28,7 @@ struct drive_fs_t *fs_partition_open( struct kdrive_t *drive, struct partition_t
 	{
 	case FS_FAT32:
         vfs_fat32_init();
-        fs->userdata2 = (size_t)vfs_ops[VFS_OPS_FAT32];
+        // fs->userdata2 = (size_t)vfs_ops[VFS_OPS_FAT32];
 		return fat32_drive_open(drive, partition);
 	case FS_NONE:
 	case FS_FAT12:
@@ -47,7 +48,7 @@ int fsmount(int drive) {
 
     int i = 0;
     while (i < 16) {
-        if (fss[i]) continue;
+        if (fss[i++]) continue;
         break;
     }
 
@@ -62,6 +63,9 @@ int fsmount(int drive) {
         set_printf_color(VGA_COLOR_RED);
             printf("Filesystem mount failed. %s is an invalid FAT32 drive\n", d->sysname);
         set_printf_color(VGA_COLOR_WHITE);
+
+        fss[i] = NULL;
+        kfree(d->fs->drive->partitions.partitions);
         return -1;
     }
     printf("Filesystem mounted successfully with %s.\n\n", d->sysname);

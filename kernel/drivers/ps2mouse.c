@@ -9,7 +9,7 @@
 #include "terminal/terminal.h"
 #include <mem.h>
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 int g_mouse_x_pos = 0, g_mouse_y_pos = 0;
 MOUSE_STATUS g_status;
@@ -20,7 +20,7 @@ int mouse_gety() { return g_mouse_y_pos; }
 
 void mouse_wait(bool type)
 {
-    uint32_t time_out = 100000;
+    u32 time_out = 100000;
     if (type == false) {
         // suspend until status is 1
         while (time_out--) {
@@ -38,12 +38,12 @@ void mouse_wait(bool type)
     }
 }
 
-uint8_t mouse_write(uint8_t data)
+u8 mouse_write(u8 data)
 {
     // sending write command
     mouse_wait(true);
     outb(PS2_CMD_PORT, MOUSE_CMD_CMD);
-    uint8_t ack = mouse_read();
+    u8 ack = mouse_read();
     // printf("%x",ack);
 
     mouse_wait(true);
@@ -54,7 +54,7 @@ uint8_t mouse_write(uint8_t data)
     return ack;
 }
 
-uint8_t mouse_read()
+u8 mouse_read()
 {
     mouse_wait(false);
     return inb(PS2_DATA_PORT);
@@ -95,11 +95,11 @@ void print_mouse_info()
         printf("Middle button clicked");
     }
 }
-static uint8_t mouse_cycle = 0;
-static uint8_t mouse_byte[4];
+static u8 mouse_cycle = 0;
+static u8 mouse_byte[4];
 void mouse_handler(registers_t *r)
 {
-    static uint8_t mouse_cycle = 0;
+    static u8 mouse_cycle = 0;
     static char mouse_byte[4];
 
     switch (mouse_cycle) {
@@ -151,7 +151,7 @@ void mouse_handler(registers_t *r)
     md.event_type = 0; // Move mouse
     md.x          = g_mouse_x_pos;
     md.y          = g_mouse_y_pos;
-    md.scroll     = (int8_t)mouse_byte[3];
+    md.scroll     = (i8)mouse_byte[3];
     // printf("%x", md.scroll);
     if (mouse_event_run != NULL) {
         // Call the registered callback function
@@ -166,12 +166,12 @@ void mouse_handler(registers_t *r)
  * available rates 10, 20, 40, 60, 80, 100, 200
  */
 
-void set_mouse_rate(uint8_t rate)
+void set_mouse_rate(u8 rate)
 {
-    uint8_t status;
+    u8 status;
     mouse_wait(true);
     outb(PS2_CMD_PORT, MOUSE_CMD_CMD);
-    uint8_t ack = mouse_read();
+    u8 ack = mouse_read();
 
     outb(PS2_DATA_PORT, MOUSE_CMD_SAMPLE_RATE);
     status = mouse_read();
@@ -193,9 +193,9 @@ void set_mouse_rate(uint8_t rate)
 
 void mouse_init()
 {
-    uint8_t status;
-    uint8_t ack; // acknowledge byte
-    uint8_t mouse_id;
+    u8 status;
+    u8 ack; // acknowledge byte
+    u8 mouse_id;
     g_mouse_x_pos = 5;
     g_mouse_y_pos = 2;
 

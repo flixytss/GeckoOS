@@ -5,12 +5,12 @@
 
 struct mbr_partition_t
 {
-	uint8_t flags;
-	uint32_t chr_start: 24;
-	uint8_t type;
-	uint32_t chr_end: 24;
-	uint32_t lba;
-	uint32_t size;
+	u8 flags;
+	u32 chr_start: 24;
+	u8 type;
+	u32 chr_end: 24;
+	u32 lba;
+	u32 size;
 };
 
 typedef struct mbr_partition_t mbr_t[4];

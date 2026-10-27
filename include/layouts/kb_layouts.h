@@ -2,18 +2,18 @@
 #define KB_LAYOUTS_H
 
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 typedef struct {
     unsigned char lower[128];
     unsigned char upper[128];
-    uint8_t id;
+    u8 id;
 } KeyboardLayout;
 
 extern KeyboardLayout PS2_LAYOUTS[];
 extern KeyboardLayout HID_LAYOUTS[];
 
-typedef uint8_t scancode_t;
+typedef u8 scancode_t;
 
 typedef struct {
     bool ShiftL;        // Is Left Shift pressed?

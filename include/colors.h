@@ -3,11 +3,11 @@
 #define COLORS_H
 
 #include <drivers/vga.h>
-#include <stdint.h>
+#include "sys/types.h"
 
-extern const uint8_t BG_COLOR;
-extern const uint8_t TERM_COLOR;
-extern const uint8_t PROMPT_COLOR;
-extern const uint8_t BOLD_COLOR;
+extern const u8 BG_COLOR;
+extern const u8 TERM_COLOR;
+extern const u8 PROMPT_COLOR;
+extern const u8 BOLD_COLOR;
 
 #endif

@@ -1,7 +1,18 @@
 #ifndef PCI_H
 #define PCI_H
 
-#include <stdint.h>
+#include "sys/types.h"
+
+#define PCI_DEV(devfn) ((devfn) >> 3)
+#define PCI_FN(devfn)  ((devfn) & 7)
+
+#define PCI_CLASS_NETWORK   0x02
+#define PCI_CLASS_SBC       0x0C
+
+#define BAR0_OFF 0x10
+#define BAR_SIZE 0x04
+
+#define PCI_HDR_DEV_ILINE_OFFSET 0x3C
 
 struct pci_bus {
     struct pci_bus *parent;
@@ -13,10 +24,10 @@ struct pci_bus {
 
     void *sysdata;
 
-    uint8_t bus;
-    uint8_t primary;
-    uint8_t secondary;
-    uint8_t subordinate;
+    u8 bus;
+    u8 primary;
+    u8 secondary;
+    u8 subordinate;
 };
 
 struct pci_dev {
@@ -26,89 +37,89 @@ struct pci_dev {
 
     void *sysdata;
 
-    uint32_t devfn;
-    uint16_t vendor;
-    uint16_t device;
-    uint32_t class;
-    uint32_t master : 1;
+    u32 devfn;
+    u16 vendor;
+    u16 device;
+    u32 class;
+    u32 master : 1;
 
-    uint8_t irq;
+    u8 irq;
 };
 
 struct pci_common_hdr {
-    uint16_t vendid;
-    uint16_t devid;
-    uint16_t cmd;
-    uint16_t status;
-    uint8_t  revid;
-    uint8_t  prog_if;
-    uint8_t  subclass;
-    uint8_t  clas; // clas :O
-    uint8_t  clz;
-    uint8_t  lt;
-    uint8_t  htype;
-    uint8_t  bist;
+    u16 vendid;
+    u16 devid;
+    u16 cmd;
+    u16 status;
+    u8  revid;
+    u8  prog_if;
+    u8  subclass;
+    u8  clas; // clas :O
+    u8  clz;
+    u8  lt;
+    u8  htype;
+    u8  bist;
 } __attribute__((packed));
 
 struct pci_hdr_dev {
-    uint32_t bar[6];
-    uint32_t cardptr;
-    uint16_t subvendid;
-    uint16_t subid;
-    uint32_t erombs;
-    uint8_t  capptr;
-    uint8_t  res[7];
-    uint8_t  iline;
-    uint8_t  ipin;
-    uint8_t  mingrant;
-    uint8_t  maxlat;
+    u32 bar[6];
+    u32 cardptr;
+    u16 subvendid;
+    u16 subid;
+    u32 erombs;
+    u8  capptr;
+    u8  res[7];
+    u8  iline;
+    u8  ipin;
+    u8  mingrant;
+    u8  maxlat;
 } __attribute__((packed));
 
 struct pci_hdr_brd {
-    uint32_t bar[2];
-    uint8_t  p_busnum;
-    uint8_t  s_busnum;
-    uint8_t  ss_busnum;
-    uint8_t  s_lt;
-    uint8_t  iobase;
-    uint8_t  iolim;
-    uint16_t s_stat;
-    uint16_t membase;
-    uint16_t memlim;
-    uint16_t pmembase;
-    uint16_t pmemlim;
-    uint32_t pupperbase;
-    uint32_t pupperlim;
-    uint16_t ioupperbase;
-    uint16_t ioupperlim;
-    uint8_t  capptr;
-    uint8_t  res[3];
-    uint32_t erombs;
-    uint8_t  iline;
-    uint8_t  ipin;
-    uint16_t bctrl;
+    u32 bar[2];
+    u8  p_busnum;
+    u8  s_busnum;
+    u8  ss_busnum;
+    u8  s_lt;
+    u8  iobase;
+    u8  iolim;
+    u16 s_stat;
+    u16 membase;
+    u16 memlim;
+    u16 pmembase;
+    u16 pmemlim;
+    u32 pupperbase;
+    u32 pupperlim;
+    u16 ioupperbase;
+    u16 ioupperlim;
+    u8  capptr;
+    u8  res[3];
+    u32 erombs;
+    u8  iline;
+    u8  ipin;
+    u16 bctrl;
 } __attribute__((packed));
 
 struct pci_hdr_crd {
-    uint32_t cardbus_addr;
-    uint8_t  cl_offset;
-    uint8_t  res;
-    uint16_t s_stat;
-    uint8_t  pcibusnum;
-    uint8_t  cbusnum;
-    uint8_t  ss_busnum;
-    uint8_t  cbus_lt;
-    uint32_t membase0;
-    uint32_t memlim0;
-    uint32_t membase1;
-    uint32_t memlim1;
-    uint32_t iobase0;
-    uint32_t iolim0;
-    uint32_t iobase1;
-    uint32_t iolim1;
-    uint8_t  iline;
-    uint8_t  ipin;
-    uint16_t bctrl;
+    u32 cardbus_addr;
+    u8  cl_offset;
+    u8  res;
+    u16 s_stat;
+    u8  pcibusnum;
+    u8  cbusnum;
+    u8  ss_busnum;
+    u8  cbus_lt;
+    u32 membase0;
+    u32 memlim0;
+    u32 membase1;
+    u32 memlim1;
+    u32 iobase0;
+    u32 iolim0;
+    u32 iobase1;
+    u32 iolim1;
+    u8  iline;
+    u8  ipin;
+    u16 bctrl;
 } __attribute__((packed));
 
 struct pci_hdr {
@@ -122,71 +133,62 @@ struct pci_hdr {
 
 struct pci_header0 {
     struct pci_common_hdr common;
-    uint32_t bar0;
-    uint32_t bar1;
-    uint8_t primary_bus;
-    uint8_t secondary_bus;
-    uint8_t subordinate_bus;
-    uint8_t secondary_lt;
-    uint8_t I0base;
-    uint8_t IOlimit;
-    uint16_t secondary_status;
-    uint16_t memory_base;
-    uint16_t memory_limit;
-    uint16_t prefetchable_membase;
-    uint16_t prefetchable_memlimit;
-    uint32_t prefetchable_membase_upper;
-    uint32_t prefetchable_memlimit_upper;
-    uint16_t IObase_upper;
-    uint16_t IOlimit_upper;
-    uint8_t capability_pointer;
+    u32 bar0;
+    u32 bar1;
+    u8 primary_bus;
+    u8 secondary_bus;
+    u8 subordinate_bus;
+    u8 secondary_lt;
+    u8 I0base;
+    u8 IOlimit;
+    u16 secondary_status;
+    u16 memory_base;
+    u16 memory_limit;
+    u16 prefetchable_membase;
+    u16 prefetchable_memlimit;
+    u32 prefetchable_membase_upper;
+    u32 prefetchable_memlimit_upper;
+    u16 IObase_upper;
+    u16 IOlimit_upper;
+    u8 capability_pointer;
     char reserved[3];
-    uint32_t expansion_ROM;
-    uint8_t interrupt_line;
-    uint8_t interrupt_pin;
-    uint16_t bridge_control;
+    u32 expansion_ROM;
+    u8 interrupt_line;
+    u8 interrupt_pin;
+    u16 bridge_control;
 } __attribute__((packed));
 
 struct PCIBar {
     union {
         void* address;
-        uint16_t port;
+        u16 port;
     } u;
-    uint64_t size;
-    uint32_t flags;
+    u64 size;
+    u32 flags;
 };
 
-struct PCIDevice {
-    uint32_t bus;
-    uint32_t slot;
-    uint32_t func;
+struct pci_device_shortcut {
+    u32 bus;
+    u32 slot;
+    u32 func;
 };
 
-uint32_t pci_readl(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off);
-uint16_t pci_readw(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off);
-uint8_t  pci_readb(uint32_t bus, uint32_t slot, uint32_t func, uint8_t off);
-void     pci_writel(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint32_t data);
-void     pci_writew(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint16_t data);
-void     pci_writeb(uint32_t bus, uint32_t slot, uint32_t func, uint32_t off, uint8_t data);
+u32 pci_readl(u32 bus, u32 slot, u32 func, u8 off);
+u16 pci_readw(u32 bus, u32 slot, u32 func, u8 off);
+u8  pci_readb(u32 bus, u32 slot, u32 func, u8 off);
+void     pci_writel(u32 bus, u32 slot, u32 func, u32 off, u32 data);
+void     pci_writew(u32 bus, u32 slot, u32 func, u32 off, u16 data);
+void     pci_writeb(u32 bus, u32 slot, u32 func, u32 off, u8 data);
 
-uint8_t enumerate_pcidev(struct pci_bus *parent, uint8_t dev, uint8_t func);
+u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func);
 void    enumerate_pcibus(struct pci_bus *bus);
 void    enumerate_pci();
 
 void pci_lspci();
 void pci_detect_controllers();
 
-#define BAR0_OFF 0x10
-#define BAR_SIZE 0x04
+const char *nic_vendor_str(u16 vendor);
 
-typedef uint32_t IOBar;
-typedef uint32_t MemorySpaceBar;
-
-uint32_t PciRead(struct PCIDevice device, uint8_t off);
-void PciWrite(struct PCIDevice device, uint8_t off, uint32_t data);
-IOBar PCIGetIOBar(struct PCIDevice device, uint8_t which);
-MemorySpaceBar PCIGetMemorySpaceBar(struct PCIDevice device, uint8_t which);
-
-const char *nic_vendor_str(uint16_t vendor);
+u32 pci_get_bar(u32 bus, u32 slot, u32 func, u8 index);
 
 #endif

@@ -61,7 +61,7 @@ Elffile:
 
 run-fat32: gecko.iso # fat32.img # I dont want to make a new .img
 	qemu-system-x86_64 \
-	  -cdrom gecko.iso -m 1G \
+	  -cdrom gecko.iso \
 	  -drive format=raw,file=fat32.img \
 	  -boot order=d \
 	  -netdev user,id=net0 \
@@ -70,7 +70,7 @@ run-fat32: gecko.iso # fat32.img # I dont want to make a new .img
 
 run-uhci: gecko.iso fat32.img
 	qemu-system-x86_64 \
-	  -cdrom gecko.iso -m 3.5G \
+	  -cdrom gecko.iso \
 	  -drive format=raw,file=fat32.img \
 	  -boot order=d \
 	  -netdev user,id=net0 \
@@ -81,7 +81,7 @@ run-uhci: gecko.iso fat32.img
 
 run-ehci: gecko.iso fat32.img
 	qemu-system-x86_64 \
-	  -cdrom gecko.iso -m 512M \
+	  -cdrom gecko.iso\
 	  -drive format=raw,file=fat32.img \
 	  -boot order=d \
 	  -netdev user,id=net0 \
@@ -91,7 +91,7 @@ run-ehci: gecko.iso fat32.img
 
 run-sata: fat32.img
 	qemu-system-x86_64 \
-	  -cdrom gecko.iso -m 512M \
+	  -cdrom gecko.iso \
 	  -boot order=d \
 	  -netdev user,id=net0 \
 	  -device e1000,netdev=net0 \
@@ -100,7 +100,7 @@ run-sata: fat32.img
 
 run-ide: fat32.img
 	qemu-system-x86_64 -machine pc \
-	  -cdrom gecko.iso -m 512M \
+	  -cdrom gecko.iso \
 	  -boot order=d \
 	  -netdev user,id=net0 \
 	  -device e1000,netdev=net0 \

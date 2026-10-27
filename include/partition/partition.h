@@ -1,7 +1,7 @@
 #ifndef PARTITION_H
 #define PARTITION_H
 
-#include "stdint.h"
+#include "sys/types.h"
 
 enum partition_fs_t
 {
@@ -14,8 +14,8 @@ enum partition_fs_t
 struct partition_t
 {
 	enum partition_fs_t type;
-	uint64_t lba;
-	uint64_t size;
+	u64 lba;
+	u64 size;
 };
 
 enum partition_type_t
@@ -28,7 +28,7 @@ enum partition_type_t
 struct partition_table_t
 {
 	enum partition_type_t type;
-	uint8_t count;
+	u8 count;
 	struct partition_t *partitions;
 };
 

@@ -1,42 +1,42 @@
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
 
-static inline void outb(uint16_t port, uint8_t val) {
+static inline void outb(u16 port, u8 val) {
     asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
 
-static inline void outw(uint16_t port, uint16_t val) {
+static inline void outw(u16 port, u16 val) {
     asm volatile ("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
+static inline u8 inb(u16 port) {
+    u8 ret;
     asm volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
     return ret; 
 }
 
-static inline uint16_t inw(uint16_t port) {
-    uint16_t ret;
+static inline u16 inw(u16 port) {
+    u16 ret;
     asm volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
     return ret;
 }
 
 struct mbr_partition_t
 {
-	uint8_t flags;
-	uint32_t chr_start: 24;
-	uint8_t type;
-	uint32_t chr_end: 24;
-	uint32_t lba;
-	uint32_t size;
+	u8 flags;
+	u32 chr_start: 24;
+	u8 type;
+	u32 chr_end: 24;
+	u32 lba;
+	u32 size;
 };
 typedef struct mbr_partition_t mbr_t[4];
 
 void _entry()
 {
-	uint16_t *mem = (void*)0x100000;
+	u16 *mem = (void*)0x100000;
 	void (*jmp)(void) = (void*)0x100000;
 	// read kernel
 	while (inb(0x1F7) & 0x80);

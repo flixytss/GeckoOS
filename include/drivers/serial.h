@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include "sys/types.h"
 #include <ports.h>
 
 #define COM1 0x3F8
@@ -38,7 +38,7 @@ static void serial_puts(const char *str) {
     while (*str) serial_putc(*str++);
 }
 
-static void serial_put_hex(uint64_t val) {
+static void serial_put_hex(u64 val) {
     const char *hex = "0123456789abcdef";
     serial_puts("0x");
     for (int i = 60; i >= 0; i -= 4) {
@@ -46,7 +46,7 @@ static void serial_put_hex(uint64_t val) {
     }
 }
 
-static void serial_put_dec(uint32_t val) {
+static void serial_put_dec(u32 val) {
     char buf[16];
     int i = 0;
     if (val == 0) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include "sys/types.h"
 #include <stdbool.h>
 
 /*
@@ -79,25 +79,25 @@
 #define E1000_TX_BUF_SIZE   2048
 
 typedef struct {
-    uint64_t addr;
-    uint16_t length;
-    uint16_t checksum;
-    uint8_t  status;
-    uint8_t  errors;
-    uint16_t special;
+    u64 addr;
+    u16 length;
+    u16 checksum;
+    u8  status;
+    u8  errors;
+    u16 special;
 } __attribute__((packed)) e1000_rx_desc_t;
 
 typedef struct {
-    uint64_t addr;
-    uint16_t length;
-    uint8_t  cso;
-    uint8_t  cmd;
-    uint8_t  status;
-    uint8_t  css;
-    uint16_t special;
+    u64 addr;
+    u16 length;
+    u8  cso;
+    u8  cmd;
+    u8  status;
+    u8  css;
+    u16 special;
 } __attribute__((packed)) e1000_tx_desc_t;
 
-bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func);
-int  e1000_send(const void *data, uint16_t len);
-void e1000_get_mac(uint8_t mac[6]);
-int  e1000_receive(uint8_t *buf, uint16_t *len);
+bool e1000_init(u8 bus, u8 slot, u8 func);
+int  e1000_send(const void *data, u16 len);
+void e1000_get_mac(u8 mac[6]);
+int  e1000_receive(u8 *buf, u16 *len);

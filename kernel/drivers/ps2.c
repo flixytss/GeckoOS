@@ -2,7 +2,7 @@
 #include "drivers/pit.h"
 #include <ports.h>
 #include <stdbool.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 /*
@@ -17,7 +17,7 @@
 bool has_ps2mouse_support = false; // this means dual channel
 
 void ps2_clear_input_buffer_status() {
-    uint8_t ps2_sts = inb(PS2_CMD_PORT);
+    u8 ps2_sts = inb(PS2_CMD_PORT);
     if (ps2_sts & (1 << 1)) // If the Input buffer status is set (full), clear it
         outb(PS2_CMD_PORT, ps2_sts & ~(1 << 1));
     inb(PS2_DATA_PORT);
@@ -37,26 +37,26 @@ bool test_ps2_port(bool port) {
     return inb(PS2_DATA_PORT) == 0x00 /* Port test passed */ ? true : false;
 }
 
-void disable_ps2_configuration_bytes(uint8_t bytes) {
+void disable_ps2_configuration_bytes(u8 bytes) {
     ps2_clear_input_buffer_status();
 
     outb(PS2_CMD_PORT, 0x20);
-    uint8_t config_byte = inb(PS2_DATA_PORT);
+    u8 config_byte = inb(PS2_DATA_PORT);
 
     outb(PS2_CMD_PORT, 0x60);
     outb(PS2_CMD_PORT, config_byte & ~bytes);
 }
-void enable_ps2_configuration_bytes(uint8_t bytes) {
+void enable_ps2_configuration_bytes(u8 bytes) {
     ps2_clear_input_buffer_status();
 
     outb(PS2_CMD_PORT, 0x20);
-    uint8_t config_byte = inb(PS2_DATA_PORT);
+    u8 config_byte = inb(PS2_DATA_PORT);
 
     outb(PS2_CMD_PORT, 0x60);
     outb(PS2_CMD_PORT, config_byte | bytes);
 }
 
-uint8_t read_ps2_configuration_byte() {
+u8 read_ps2_configuration_byte() {
     ps2_clear_input_buffer_status();
 
     outb(PS2_CMD_PORT, 0x20);
@@ -86,7 +86,7 @@ bool ps2_wait(bool type) {
     return timeout;
 }
 
-uint8_t send_ps2_device_byte(uint8_t byte, bool device) {
+u8 send_ps2_device_byte(u8 byte, bool device) {
     if (device) {
         if (ps2_wait(true)) return 0x01; // Timeout
         outb(PS2_CMD_PORT, 0xD4);
@@ -101,8 +101,8 @@ uint8_t send_ps2_device_byte(uint8_t byte, bool device) {
     return inb(PS2_DATA_PORT);
 }
 
-uint8_t ps2_init() {
-    uint8_t ret_code = 0;
+u8 ps2_init() {
+    u8 ret_code = 0;
 
     disable_ps2_devices();
 

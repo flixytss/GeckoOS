@@ -7,46 +7,46 @@
 #include <mem.h>
 #include <mem/physical_mem.h>
 #include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 #define BLOCK_SIZE      4096ULL
 #define BLOCKS_PER_BYTE 8
 
-static uint32_t *memory_map        = NULL;
-static uint64_t max_blocks         = 0;
-static uint64_t used_blocks        = 0;
-static uint64_t bitmap_base        = 0; // Where the bitmap itself is stored
-static uint64_t bitmap_size_blocks = 0; // Size of bitmap in blocks
+static u32 *memory_map        = NULL;
+static u64 max_blocks         = 0;
+static u64 used_blocks        = 0;
+static u64 bitmap_base        = 0; // Where the bitmap itself is stored
+static u64 bitmap_size_blocks = 0; // Size of bitmap in blocks
 
 // External kernel boundaries from linker script
-extern uint8_t _kernel_start[];
-extern uint8_t _kernel_end[];
+extern u8 _kernel_start[];
+extern u8 _kernel_end[];
 
-void set_block(uint32_t bit)
+void set_block(u32 bit)
 {
     if (bit < max_blocks)
         memory_map[bit / 32] |= (1u << (bit % 32));
 }
 
-static void unset_block(uint32_t bit)
+static void unset_block(u32 bit)
 {
     if (bit < max_blocks)
         memory_map[bit / 32] &= ~(1u << (bit % 32));
 }
 
-int32_t find_first_free_blocks(uint32_t num_blocks)
+i32 find_first_free_blocks(u32 num_blocks)
 {
     if (num_blocks == 0)
         return -1;
 
-    for (uint64_t i = 0; i < max_blocks / 32; i++) {
+    for (u64 i = 0; i < max_blocks / 32; i++) {
         if (memory_map[i] != 0xFFFFFFFF) {
-            for (int32_t j = 0; j < 32; j++) {
+            for (i32 j = 0; j < 32; j++) {
                 if (!(memory_map[i] & (1u << j))) {
-                    uint32_t free_count = 0;
-                    for (uint32_t k = 0; k < num_blocks; k++) {
-                        uint64_t bit = (uint64_t)i * 32 + j + k;
+                    u32 free_count = 0;
+                    for (u32 k = 0; k < num_blocks; k++) {
+                        u64 bit = (u64)i * 32 + j + k;
                         if (bit >= max_blocks)
                             break;
                         if (!(memory_map[bit / 32] & (1u << (bit % 32))))
@@ -55,7 +55,7 @@ int32_t find_first_free_blocks(uint32_t num_blocks)
                             break;
                     }
                     if (free_count == num_blocks)
-                        return (int32_t)((uint64_t)i * 32 + j);
+                        return (i32)((u64)i * 32 + j);
                 }
             }
         }
@@ -64,54 +64,54 @@ int32_t find_first_free_blocks(uint32_t num_blocks)
 }
 
 // Reserve a specific memory region (mark as used)
-static void reserve_region(uint64_t base, uint64_t size)
+static void reserve_region(u64 base, u64 size)
 {
-    uint64_t start_block = base / BLOCK_SIZE;
-    uint64_t num_blocks  = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    u64 start_block = base / BLOCK_SIZE;
+    u64 num_blocks  = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    for (uint64_t i = 0; i < num_blocks && (start_block + i) < max_blocks;
+    for (u64 i = 0; i < num_blocks && (start_block + i) < max_blocks;
          i++) {
         if (!(memory_map[(start_block + i) / 32] &
               (1u << ((start_block + i) % 32)))) {
-            set_block((uint32_t)(start_block + i));
+            set_block((u32)(start_block + i));
             used_blocks++;
         }
     }
 }
 
 // Add a free region (mark as unused)
-static void free_region(uint64_t base, uint64_t size)
+static void free_region(u64 base, u64 size)
 {
-    uint64_t start_block = base / BLOCK_SIZE;
-    uint64_t num_blocks  = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    for (uint64_t i = 0; i < num_blocks && (start_block + i) < max_blocks;i++) {
+    u64 start_block = base / BLOCK_SIZE;
+    u64 num_blocks  = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    for (u64 i = 0; i < num_blocks && (start_block + i) < max_blocks;i++) {
         if (memory_map[(start_block + i) / 32] &
             (1u << ((start_block + i) % 32))) {
-            unset_block((uint32_t)(start_block + i));
+            unset_block((u32)(start_block + i));
             used_blocks--;
         }
     }
 }
 
 // Initialize from Multiboot2 memory map
-extern uint64_t max_addr_used;
-void initialize_memory_manager_from_mbi(uint64_t mbi_addr)
+extern u64 max_addr_used;
+void initialize_memory_manager_from_mbi(u64 mbi_addr)
 {
     // First, find the highest memory address to determine bitmap size
-    uint8_t *mbi          = (uint8_t *)mbi_addr;
-    uint32_t total_size   = *(uint32_t *)mbi;
+    u8 *mbi          = (u8 *)mbi_addr;
+    u32 total_size   = *(u32 *)mbi;
     multiboot2_tag_t *tag = (multiboot2_tag_t *)(mbi + 8);
     uintptr_t mbi_end     = (uintptr_t)mbi + total_size;
 
     // Calculate bitmap size and find a place for it
     max_blocks = (max_addr_used + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    uint64_t bitmap_bytes =
+    u64 bitmap_bytes =
         (max_blocks + BLOCKS_PER_BYTE - 1) / BLOCKS_PER_BYTE;
-    uint64_t bitmap_blocks = (bitmap_bytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    u64 bitmap_blocks = (bitmap_bytes + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
     // Find a location for the bitmap (just after kernel is safe)
-    bitmap_base = ((uint64_t)_kernel_end + BLOCK_SIZE - 1) & ~(BLOCK_SIZE - 1);
-    memory_map  = (uint32_t *)(uintptr_t)bitmap_base;
+    bitmap_base = ((u64)_kernel_end + BLOCK_SIZE - 1) & ~(BLOCK_SIZE - 1);
+    memory_map  = (u32 *)(uintptr_t)bitmap_base;
     bitmap_size_blocks = bitmap_blocks;
 
     // Initialize bitmap to all used (0xFF = all blocks allocated)
@@ -129,7 +129,7 @@ void initialize_memory_manager_from_mbi(uint64_t mbi_addr)
                     #ifdef DEBUG
                         if (entry->length) set_printf_color(VGA_COLOR_DARK_GREY);
                         else set_printf_color(VGA_COLOR_RED);
-                        printf("Available memory at 0x%p with %lu bytes\n", entry->base_addr, entry->length); // %d is for int32_ts
+                        printf("Available memory at 0x%p with %lu bytes\n", entry->base_addr, entry->length); // %d is for i32s
                         if (!entry->length) {
                             printf("Available memory with negative length? (That isn't good) Halting forever...");
                             for(;;) HALT();
@@ -148,8 +148,8 @@ void initialize_memory_manager_from_mbi(uint64_t mbi_addr)
     #endif
 
     // Reserve kernel regions
-    reserve_region((uint64_t)_kernel_start,
-                   (uint64_t)_kernel_end - (uint64_t)_kernel_start);
+    reserve_region((u64)_kernel_start,
+                   (u64)_kernel_end - (u64)_kernel_start);
 
     // Reserve Multiboot info structure
     reserve_region(mbi_addr, total_size);
@@ -167,34 +167,34 @@ void initialize_memory_manager_from_mbi(uint64_t mbi_addr)
     reserve_region(AP_TRAMPOLINE_ADDR, AP_TRAMPOLINE_SIZE);
 }
 
-void deinitialize_memory_region(uint64_t base_address, uint64_t size)
+void deinitialize_memory_region(u64 base_address, u64 size)
 { reserve_region(base_address, size); }
 
-void *allocate_blocks(uint32_t num_blocks)
+void *allocate_blocks(u32 num_blocks)
 {
     if ((max_blocks - used_blocks) <= num_blocks)
         return NULL;
 
-    int32_t start = find_first_free_blocks(num_blocks);
+    i32 start = find_first_free_blocks(num_blocks);
     if (start == -1)
         return NULL;
 
-    for (uint32_t i = 0; i < num_blocks; i++)
-        set_block((uint32_t)start + i);
+    for (u32 i = 0; i < num_blocks; i++)
+        set_block((u32)start + i);
 
     used_blocks += num_blocks;
-    return (void *)(uintptr_t)((uint64_t)start * BLOCK_SIZE);
+    return (void *)(uintptr_t)((u64)start * BLOCK_SIZE);
 }
 
-void free_blocks(const void *address, uint32_t num_blocks)
+void free_blocks(const void *address, u32 num_blocks)
 {
-    int32_t start = (int32_t)((uintptr_t)address / BLOCK_SIZE);
+    i32 start = (i32)((uintptr_t)address / BLOCK_SIZE);
 
-    if (start < 0 || (uint64_t)start + num_blocks > max_blocks)
+    if (start < 0 || (u64)start + num_blocks > max_blocks)
         return;
 
-    for (uint32_t i = 0; i < num_blocks; i++)
-        unset_block((uint32_t)start + i);
+    for (u32 i = 0; i < num_blocks; i++)
+        unset_block((u32)start + i);
 
     used_blocks -= num_blocks;
 }

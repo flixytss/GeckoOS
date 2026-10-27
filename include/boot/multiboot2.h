@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "sys/types.h"
 
 
 /** Written into the Multiboot2 header embedded in the kernel image. */
@@ -44,74 +44,74 @@
 #define MULTIBOOT2_MEMORY_BADRAM            5
 
 typedef struct multiboot2_info_header {
-    uint32_t total_size;
-    uint32_t reserved;
+    u32 total_size;
+    u32 reserved;
 } __attribute__((packed)) multiboot2_info_header_t;
 
 /** Every tag in the MBI begins with this common prefix. */
 typedef struct multiboot2_tag {
-    uint32_t type;
-    uint32_t size;
+    u32 type;
+    u32 size;
 } __attribute__((packed)) multiboot2_tag_t;
 
 /** MULTIBOOT2_TAG_TYPE_BASIC_MEMINFO */
 typedef struct multiboot2_tag_basic_meminfo {
-    uint32_t type;
-    uint32_t size;
-    uint32_t mem_lower;   /**< Kilobytes of lower memory (below 1 MB). */
-    uint32_t mem_upper;   /**< Kilobytes of upper memory (above 1 MB). */
+    u32 type;
+    u32 size;
+    u32 mem_lower;   /**< Kilobytes of lower memory (below 1 MB). */
+    u32 mem_upper;   /**< Kilobytes of upper memory (above 1 MB). */
 } __attribute__((packed)) multiboot2_tag_basic_meminfo_t;
 
 /** One entry in the MULTIBOOT2_TAG_TYPE_MMAP tag. */
 typedef struct multiboot2_mmap_entry {
-    uint64_t base_addr;
-    uint64_t length;
-    uint32_t type;        /**< One of MULTIBOOT2_MEMORY_* */
-    uint32_t reserved;
+    u64 base_addr;
+    u64 length;
+    u32 type;        /**< One of MULTIBOOT2_MEMORY_* */
+    u32 reserved;
 } __attribute__((packed)) multiboot2_mmap_entry_t;
 
 /** MULTIBOOT2_TAG_TYPE_MMAP */
 typedef struct multiboot2_tag_mmap {
-    uint32_t type;
-    uint32_t size;
-    uint32_t entry_size;
-    uint32_t entry_version;
+    u32 type;
+    u32 size;
+    u32 entry_size;
+    u32 entry_version;
     struct multiboot2_mmap_entry entries[];
     /* Followed by (size - 16) / entry_size entries of type multiboot2_mmap_entry_t */
 } __attribute__((packed)) multiboot2_tag_mmap_t;
 
 /** MULTIBOOT2_TAG_TYPE_CMDLINE */
 typedef struct multiboot2_tag_cmdline {
-    uint32_t type;
-    uint32_t size;
+    u32 type;
+    u32 size;
     char     string[];    /**< Null-terminated command line string. */
 } __attribute__((packed)) multiboot2_tag_cmdline_t;
 
 /** MULTIBOOT2_TAG_TYPE_BOOT_LOADER_NAME */
 typedef struct multiboot2_tag_bootloader_name {
-    uint32_t type;
-    uint32_t size;
+    u32 type;
+    u32 size;
     char     string[];
 } __attribute__((packed)) multiboot2_tag_bootloader_name_t;
 
 /** MULTIBOOT2_TAG_TYPE_FRAMEBUFFER */
 typedef struct multiboot2_tag_framebuffer {
-    uint32_t type;
-    uint32_t size;
-    uint64_t framebuffer_addr;
-    uint32_t framebuffer_pitch;
-    uint32_t framebuffer_width;
-    uint32_t framebuffer_height;
-    uint8_t  framebuffer_bpp;
-    uint8_t  framebuffer_type;
-    uint16_t reserved;
+    u32 type;
+    u32 size;
+    u64 framebuffer_addr;
+    u32 framebuffer_pitch;
+    u32 framebuffer_width;
+    u32 framebuffer_height;
+    u8  framebuffer_bpp;
+    u8  framebuffer_type;
+    u16 reserved;
 } __attribute__((packed)) multiboot2_tag_framebuffer_t;
 
 /** MULTIBOOT2_TAG_TYPE_ACPI_OLD / MULTIBOOT2_TAG_TYPE_ACPI_NEW */
 typedef struct multiboot2_tag_acpi {
-    uint32_t type;
-    uint32_t size;
-    uint8_t  rsdp[];      /**< Raw RSDP bytes (8 bytes for v1, 36 for v2). */
+    u32 type;
+    u32 size;
+    u8  rsdp[];      /**< Raw RSDP bytes (8 bytes for v1, 36 for v2). */
 } __attribute__((packed)) multiboot2_tag_acpi_t;
 
 /**

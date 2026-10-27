@@ -7,41 +7,41 @@
 #include "drivers/vga.h"
 #include "terminal/printf.h"
 
-static volatile uint32_t *mmio_base = NULL;
-static uint8_t mac[6];
+static volatile u32 *mmio_base = NULL;
+static u8 mac[6];
 
 static e1000_rx_desc_t *rx_descs_phys = NULL;
 static e1000_tx_desc_t *tx_descs_phys = NULL;
-static uint8_t         *rx_bufs_phys  = NULL;
-static uint8_t         *tx_buf_phys   = NULL;
+static u8         *rx_bufs_phys  = NULL;
+static u8         *tx_buf_phys   = NULL;
 
 static e1000_rx_desc_t *rx_descs = NULL;
 static e1000_tx_desc_t *tx_descs = NULL;
-static uint8_t         *rx_bufs  = NULL;
-static uint8_t         *tx_buf   = NULL;
+static u8         *rx_bufs  = NULL;
+static u8         *tx_buf   = NULL;
 
-static uint32_t rx_tail = 0;
-static uint32_t tx_tail = 0;
+static u32 rx_tail = 0;
+static u32 tx_tail = 0;
 
-static uint32_t e1000_read(uint32_t reg) {
+static u32 e1000_read(u32 reg) {
     return mmio_base[reg / 4];
 }
 
-static void e1000_write(uint32_t reg, uint32_t val) {
+static void e1000_write(u32 reg, u32 val) {
     mmio_base[reg / 4] = val;
 }
 
-static uint32_t eeprom_read(uint8_t addr) {
-    e1000_write(E1000_EERD, (1u) | ((uint32_t)addr << 8));
-    uint32_t v;
+static u32 eeprom_read(u8 addr) {
+    e1000_write(E1000_EERD, (1u) | ((u32)addr << 8));
+    u32 v;
     do { v = e1000_read(E1000_EERD); } while (!(v & (1u << 4)));
     return (v >> 16) & 0xFFFF;
 }
 
 static void read_mac(void) {
-    uint32_t lo = eeprom_read(0);
-    uint32_t mid = eeprom_read(1);
-    uint32_t hi = eeprom_read(2);
+    u32 lo = eeprom_read(0);
+    u32 mid = eeprom_read(1);
+    u32 hi = eeprom_read(2);
     mac[0] = lo & 0xFF;
     mac[1] = (lo >> 8) & 0xFF;
     mac[2] = mid & 0xFF;
@@ -52,14 +52,14 @@ static void read_mac(void) {
 
 static void rx_init(void) {
     for (int i = 0; i < E1000_NUM_RX_DESC; i++) {
-        uint64_t buf_phys = (uint64_t)(uintptr_t)(rx_bufs_phys + i * E1000_RX_BUF_SIZE);
+        u64 buf_phys = (u64)(uintptr_t)(rx_bufs_phys + i * E1000_RX_BUF_SIZE);
         rx_descs[i].addr   = buf_phys;
         rx_descs[i].status = 0;
     }
 
-    uint64_t base = (uint64_t)(uintptr_t)rx_descs_phys;
-    e1000_write(E1000_RDBAL, (uint32_t)(base & 0xFFFFFFFF));
-    e1000_write(E1000_RDBAH, (uint32_t)(base >> 32));
+    u64 base = (u64)(uintptr_t)rx_descs_phys;
+    e1000_write(E1000_RDBAL, (u32)(base & 0xFFFFFFFF));
+    e1000_write(E1000_RDBAH, (u32)(base >> 32));
     e1000_write(E1000_RDLEN, E1000_NUM_RX_DESC * sizeof(e1000_rx_desc_t));
     e1000_write(E1000_RDH, 0);
     e1000_write(E1000_RDT, E1000_NUM_RX_DESC - 1);
@@ -78,9 +78,9 @@ static void tx_init(void) {
         tx_descs[i].status = E1000_TXD_STAT_DD;
     }
 
-    uint64_t base = (uint64_t)(uintptr_t)tx_descs_phys;
-    e1000_write(E1000_TDBAL, (uint32_t)(base & 0xFFFFFFFF));
-    e1000_write(E1000_TDBAH, (uint32_t)(base >> 32));
+    u64 base = (u64)(uintptr_t)tx_descs_phys;
+    e1000_write(E1000_TDBAL, (u32)(base & 0xFFFFFFFF));
+    e1000_write(E1000_TDBAH, (u32)(base >> 32));
     e1000_write(E1000_TDLEN, E1000_NUM_TX_DESC * sizeof(e1000_tx_desc_t));
     e1000_write(E1000_TDH, 0);
     e1000_write(E1000_TDT, 0);
@@ -99,10 +99,10 @@ static volatile int rx_pending = 0;
 
 static void e1000_irq_handler(registers_t *regs) {
     (void)regs;
-    uint32_t icr = e1000_read(E1000_ICR);
+    u32 icr = e1000_read(E1000_ICR);
 
     if (icr & E1000_ICR_LSC) {
-        uint32_t status = e1000_read(E1000_STATUS);
+        u32 status = e1000_read(E1000_STATUS);
         printf("e1000: link %s\n", (status & 2) ? "up" : "down");
     }
 
@@ -111,8 +111,8 @@ static void e1000_irq_handler(registers_t *regs) {
     }
 }
 
-bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
-    uint32_t bar0 = pci_readl(bus, slot, func, 0x10) & ~0xFu;
+bool e1000_init(u8 bus, u8 slot, u8 func) {
+    u32 bar0 = pci_readl(bus, slot, func, 0x10) & ~0xFu;
 
     set_printf_color(VGA_COLOR_LIGHT_RED);
     if (!bar0) {
@@ -120,14 +120,14 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
         return false;
     }
 
-    uint64_t virt = mmio_map((uint64_t)bar0, 0x20000); // TODO: Get the bar size
+    u64 virt = mmio_map((u64)bar0, 0x20000); // TODO: Get the bar size
     if (!virt) {
         printf("e1000: mmio_map failed\n");
         return false;
     }
-    mmio_base = (volatile uint32_t *)virt;
+    mmio_base = (volatile u32 *)virt;
 
-    uint16_t cmd = pci_readw(bus, slot, func, 0x04);
+    u16 cmd = pci_readw(bus, slot, func, 0x04);
     pci_writew(bus, slot, func, 0x04, cmd | (1u << 1) | (1u << 2));
 
     /* reset */
@@ -146,8 +146,8 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
 
     rx_descs_phys = (e1000_rx_desc_t *)allocate_blocks(1);
     tx_descs_phys = (e1000_tx_desc_t *)allocate_blocks(1);
-    rx_bufs_phys  = (uint8_t *)allocate_blocks(E1000_NUM_RX_DESC);
-    tx_buf_phys   = (uint8_t *)allocate_blocks(1);
+    rx_bufs_phys  = (u8 *)allocate_blocks(E1000_NUM_RX_DESC);
+    tx_buf_phys   = (u8 *)allocate_blocks(1);
 
     if (!rx_descs_phys || !tx_descs_phys || !rx_bufs_phys || !tx_buf_phys) {
         printf("e1000: failed to allocate DMA buffers\n");
@@ -169,13 +169,13 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
 
     /* write MAC into receive address register 0 */
     e1000_write(E1000_RAL,
-        (uint32_t)mac[0] |
-        (uint32_t)mac[1] << 8  |
-        (uint32_t)mac[2] << 16 |
-        (uint32_t)mac[3] << 24);
+        (u32)mac[0] |
+        (u32)mac[1] << 8  |
+        (u32)mac[2] << 16 |
+        (u32)mac[3] << 24);
     e1000_write(E1000_RAH,
-        (uint32_t)mac[4] |
-        (uint32_t)mac[5] << 8  |
+        (u32)mac[4] |
+        (u32)mac[5] << 8  |
         E1000_RAH_AV);
 
     rx_init();
@@ -188,7 +188,7 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
         E1000_ICR_LSC  |
         E1000_ICR_RXO);
 
-    uint8_t irq_line = pci_readb(bus, slot, func, 0x3C);
+    u8 irq_line = pci_readb(bus, slot, func, 0x3C);
     irq_install_handler(irq_line, e1000_irq_handler,0x9);
 
     #ifdef DEBUG
@@ -200,7 +200,7 @@ bool e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
     return true;
 }
 
-int e1000_send(const void *data, uint16_t len) {
+int e1000_send(const void *data, u16 len) {
     if (!mmio_base) return -1;
     if (len > E1000_TX_BUF_SIZE) return -1;
 
@@ -213,7 +213,7 @@ int e1000_send(const void *data, uint16_t len) {
     /* Copy data into physical TX buffer */
     memcpy(tx_buf, data, len);
 
-    uint64_t buf_phys = (uint64_t)(uintptr_t)tx_buf;
+    u64 buf_phys = (u64)(uintptr_t)tx_buf;
     tx_descs[tx_tail].addr   = buf_phys;
     tx_descs[tx_tail].length = len;
     tx_descs[tx_tail].cmd    = E1000_TXD_CMD_EOP | E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
@@ -225,18 +225,18 @@ int e1000_send(const void *data, uint16_t len) {
     return 0;
 }
 
-void e1000_get_mac(uint8_t out[6]) {
+void e1000_get_mac(u8 out[6]) {
     for (int i = 0; i < 6; i++)
         out[i] = mac[i];
 }
 
-int e1000_receive(uint8_t *buf, uint16_t *len) {
+int e1000_receive(u8 *buf, u16 *len) {
     if (!mmio_base) return -1;
 
     if (rx_descs[rx_tail].status & E1000_RXD_STAT_DD) {
         *len = rx_descs[rx_tail].length;
-        uint8_t *src = rx_bufs + rx_tail * E1000_RX_BUF_SIZE;
-        for (uint16_t i = 0; i < *len; i++)
+        u8 *src = rx_bufs + rx_tail * E1000_RX_BUF_SIZE;
+        for (u16 i = 0; i < *len; i++)
             buf[i] = src[i];
 
         rx_descs[rx_tail].status = 0;

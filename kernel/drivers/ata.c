@@ -3,7 +3,7 @@
 #include "terminal/printf.h"
 #include <drivers/ata.h>
 #include <ports.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <drivers/drives.h>
 #include <terminal/terminal.h>
 
@@ -14,9 +14,9 @@ static void ata_delay(void) {
 }
 
 static int ata_wait_not_busy(void) {
-    uint32_t timeout = 1000000;
+    u32 timeout = 1000000;
     while (timeout--) {
-        uint8_t status = inb(ATA_PRIMARY_BASE + ATA_REG_STATUS);
+        u8 status = inb(ATA_PRIMARY_BASE + ATA_REG_STATUS);
         if (status == 0xFF) return -1;
         if (!(status & ATA_SR_BSY)) return 0;
     }
@@ -24,9 +24,9 @@ static int ata_wait_not_busy(void) {
 }
 
 static int ata_poll_drq(void) {
-    uint32_t timeout = 100000;
+    u32 timeout = 100000;
     while (timeout--) {
-        uint8_t status = inb(ATA_PRIMARY_BASE + ATA_REG_STATUS);
+        u8 status = inb(ATA_PRIMARY_BASE + ATA_REG_STATUS);
         if (status & ATA_SR_ERR) return -1;
         if (status & ATA_SR_DRQ) return 0;
     }
@@ -34,18 +34,18 @@ static int ata_poll_drq(void) {
 }
 
 static int ata_kdrive_read_sectors(struct kdrive_t *drive, unsigned int lba,
-                                    unsigned int count, uint8_t *buf)
+                                    unsigned int count, u8 *buf)
 {
     return ata_read_sectors(drive->userdata1, lba, count, buf);
 }
 
 static ssize_t ata_kdrive_write_sectors(struct kdrive_t *drive, size_t lba,
-                                         size_t count, const uint8_t *buf)
+                                         size_t count, const u8 *buf)
 {
     return ata_write_sectors(drive->userdata1, lba, count, buf);
 }
 
-uint16_t busses_by_drive[] = {
+u16 busses_by_drive[] = {
     ATA_PRIMARY_BASE,
     ATA_PRIMARY_BASE,
     ATA_SECONDARY_BASE,
@@ -55,22 +55,22 @@ uint16_t busses_by_drive[] = {
 static int ata_check_drive(int drive, char bus) /* BUS == 0: Depending on the drive, the bus will be 1 or 2 */ {
     drive_present[drive] = 0;
 
-    uint16_t base = bus == 0 ? busses_by_drive[drive] : (bus ? ATA_SECONDARY_BASE : ATA_PRIMARY_BASE);
-    uint8_t select = ((drive & 1) == 0) ? ATA_SELECT_SLAVE : ATA_SELECT_MASTER;
+    u16 base = bus == 0 ? busses_by_drive[drive] : (bus ? ATA_SECONDARY_BASE : ATA_PRIMARY_BASE);
+    u8 select = ((drive & 1) == 0) ? ATA_SELECT_SLAVE : ATA_SELECT_MASTER;
 
     // Select drive and wait
     outb(base + ATA_REG_HDDEVSEL, select);
     for (int i = 0; i < 5; i++) ata_delay();
 
     // Check status — 0xFF means no drive on bus
-    uint8_t status = inb(base + ATA_REG_STATUS);
+    u8 status = inb(base + ATA_REG_STATUS);
     if (status == 0xFF) return 0;
 
     // Wait for not busy
     if (ata_wait_not_busy() != 0) return 0;
 
     // Try to read sector 0 as a presence test
-    uint8_t lba_sel = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER);
+    u8 lba_sel = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER);
     outb(base + ATA_REG_HDDEVSEL, lba_sel);
     ata_delay();
     outb(base + ATA_REG_SECCOUNT, 1);
@@ -103,8 +103,8 @@ static int ata_check_drive(int drive, char bus) /* BUS == 0: Depending on the dr
 }
 
 void ata_init(void) {
-    for (uint8_t i = 0; i < 2; i++) {
-        for (uint8_t y = 0; y < 2; y++) {
+    for (u8 i = 0; i < 2; i++) {
+        for (u8 y = 0; y < 2; y++) {
             ata_check_drive(y, i);
         }
     }
@@ -115,22 +115,22 @@ int ata_drive_present(int drive) {
     return drive_present[drive];
 }
 
-int ata_read_sectors(int drive, uint32_t lba, uint8_t count, uint8_t *buf) {
+int ata_read_sectors(int drive, u32 lba, u8 count, u8 *buf) {
     if (!drive_present[drive]) return -1;
     if (ata_wait_not_busy() != 0) return -1;
 
-    uint8_t lba_select = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER)
+    u8 lba_select = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER)
                          | ((lba >> 24) & 0x0F);
 
     outb(ATA_PRIMARY_BASE + ATA_REG_HDDEVSEL, lba_select);
     ata_delay();
     outb(ATA_PRIMARY_BASE + ATA_REG_SECCOUNT, count);
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_LO,   (uint8_t)(lba));
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_MID,  (uint8_t)(lba >> 8));
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_HI,   (uint8_t)(lba >> 16));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_LO,   (u8)(lba));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_MID,  (u8)(lba >> 8));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_HI,   (u8)(lba >> 16));
     outb(ATA_PRIMARY_BASE + ATA_REG_COMMAND,   ATA_CMD_READ_PIO);
 
-    uint16_t *p = (uint16_t *)buf;
+    u16 *p = (u16 *)buf;
     for (int s = 0; s < count; s++) {
         if (ata_wait_not_busy() != 0) return -1;
         if (ata_poll_drq() != 0) return -1;
@@ -141,22 +141,22 @@ int ata_read_sectors(int drive, uint32_t lba, uint8_t count, uint8_t *buf) {
     return count;
 }
 
-int ata_write_sectors(int drive, uint32_t lba, uint8_t count, const uint8_t *buf) {
+int ata_write_sectors(int drive, u32 lba, u8 count, const u8 *buf) {
     if (!drive_present[drive]) return -1;
     if (ata_wait_not_busy() != 0) return -1;
 
-    uint8_t lba_select = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER)
+    u8 lba_select = (drive ? ATA_LBA_SLAVE : ATA_LBA_MASTER)
                          | ((lba >> 24) & 0x0F);
 
     outb(ATA_PRIMARY_BASE + ATA_REG_HDDEVSEL, lba_select);
     ata_delay();
     outb(ATA_PRIMARY_BASE + ATA_REG_SECCOUNT, count);
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_LO,   (uint8_t)(lba));
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_MID,  (uint8_t)(lba >> 8));
-    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_HI,   (uint8_t)(lba >> 16));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_LO,   (u8)(lba));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_MID,  (u8)(lba >> 8));
+    outb(ATA_PRIMARY_BASE + ATA_REG_LBA_HI,   (u8)(lba >> 16));
     outb(ATA_PRIMARY_BASE + ATA_REG_COMMAND,   ATA_CMD_WRITE_PIO);
 
-    const uint16_t *p = (const uint16_t *)buf;
+    const u16 *p = (const u16 *)buf;
     for (int s = 0; s < count; s++) {
         if (ata_wait_not_busy() != 0) return -1;
         if (ata_poll_drq() != 0) return -1;

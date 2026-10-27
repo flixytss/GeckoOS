@@ -1,13 +1,13 @@
 #pragma once
-#include <stdint.h>
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
+#include "sys/types.h"
 #include "drivers/ps2mouse.h"
 #include <drivers/ps2keyboard.h>
 #include <drivers/vga.h>
 
-#define VGA_MEMORY ((uint16_t *)0xB8000)
+#define VGA_MEMORY ((u16 *)0xB8000)
 
 /* vga.h defines VGA_TEXT_WIDTH/HEIGHT for the legacy 80x25 text mode.
  * We redefine them here for the framebuffer terminal (1024x768 / 8x16 font).
@@ -30,17 +30,17 @@ static unsigned char history_entries[HISTORY_SIZE][512];
 
 void terminal_init();
 
-void putchar(char c, uint8_t COLOR);
-void write(char *data, size_t size, uint8_t COLOR);
-void printc(char *data, uint8_t COLOR);
+void putchar(char c, u8 COLOR);
+void write(char *data, size_t size, u8 COLOR);
+void printc(char *data, u8 COLOR);
 void print(char *data);
 void print_int(int n);
-void print_hex(uint32_t n);
+void print_hex(u32 n);
 
 ;
 
 #define SCROLLBACK_LINES 1000 /* 1000 * 128 cols * 2 bytes = 256KB in BSS */
-static uint16_t console_history[SCROLLBACK_LINES][VGA_TEXT_WIDTH]; //console history
+static u16 console_history[SCROLLBACK_LINES][VGA_TEXT_WIDTH]; //console history
 static int total_lines=0;//total lines in history should be update when terminal row is
 static int viewport_top=0;//viewport lines(the current line we at should be )
 //renders to vga
@@ -51,10 +51,10 @@ void scroll_up();
 void scroll_down();
 
 // Ember2819: clear command
-void terminal_clear(uint8_t color);
+void terminal_clear(u8 color);
 static void history_push(unsigned char *buf);
 
-void input(unsigned char *buff, size_t buffer_size, uint8_t color);
+void input(unsigned char *buff, size_t buffer_size, u8 color);
 void get_mouse_event(mouse_event_data_t md);
 
 void draw_cursor(int x, int y, int visible);
@@ -63,7 +63,7 @@ typedef struct {
     int x;
     int y;
     int is_drawn;
-    uint16_t
+    u16
         original_cell; // Store the original cell at current cursor position
 } cursor_t;
 static float sensibility = 0.7;

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <stdint.h>
+#include "sys/types.h"
 
-void start_pit_timer(uint32_t frequency);
-void pit_timer_wait_s(uint64_t ticks);
-void pit_timer_wait_ms(uint32_t ms);
+void start_pit_timer(u32 frequency);
+void pit_timer_wait_s(u64 ticks);
+void pit_timer_wait_ms(u32 ms);
 
-extern volatile uint64_t pit_timer;
+extern volatile u64 pit_timer;
 
 #define PITHZ 1000

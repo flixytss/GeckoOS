@@ -2,27 +2,9 @@
 #include "mem.h"
 #include "sys/errno.h"
 #include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
+#include "fs/devfs.h"
 #include <terminal/printf.h>
-
-struct ramfs_node {
-    struct vfs_inode* inode;
-
-    char* name;
-    struct device* device;
-
-    struct ramfs_node* childrens; // this is a linked list
-    struct ramfs_node* next;
-};
-
-struct device {
-    char* name;
-
-    size_t (*read)(struct ramfs_node* devfs, uint8_t* buffer, size_t len);
-    size_t (*write)(struct ramfs_node* devfs, const uint8_t* buffer, size_t len);
-
-    void* reserved;
-};
 
 struct vfs_filesystem* create_devfs() {
     struct vfs_filesystem* devfs = kmalloc(sizeof(struct vfs_filesystem));
@@ -33,12 +15,14 @@ struct vfs_filesystem* create_devfs() {
     struct ramfs_node* root = kmalloc(sizeof(struct ramfs_node));
     memset(root, 0, sizeof(*root));
 
-    root->inode = vfs_inode_create(devfs, (uint64_t)root);
+    root->inode = vfs_inode_create(devfs, (u64)root);
 
     root->inode->mode = VFS_DIR;
     root->inode->fs = devfs;
     root->inode->ops = vfs_ops[VFS_OPS_DEVFS];
     root->inode->reserved = root;
+
+    root->name = strdup("devfs-root");
 
     devfs->root = root->inode;
 
@@ -46,17 +30,14 @@ struct vfs_filesystem* create_devfs() {
 }
 
 // Vfs ops
-size_t devfs_vfs_read(struct vfs_inode* inode, size_t offset, uint8_t* buffer, size_t len) {
-    if (!inode || !((struct ramfs_node*)inode->reserved)->device || !buffer) return -EINVAL;
+size_t devfs_vfs_read(struct vfs_inode* inode, size_t offset, u8* buffer, size_t len) {
     return ((struct ramfs_node*)inode->reserved)->device->read(inode->reserved, buffer, len);
 }
-size_t devfs_vfs_write(struct vfs_inode* inode, size_t offset, const uint8_t* buffer, size_t len) {
-    if (!inode || !((struct ramfs_node*)inode->reserved)->device || !buffer) return -EINVAL;
+size_t devfs_vfs_write(struct vfs_inode* inode, size_t offset, const u8* buffer, size_t len) {
     return ((struct ramfs_node*)inode->reserved)->device->write(inode->reserved, buffer, len);
 }
 int devfs_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer) {
     struct ramfs_node* node = (struct ramfs_node*)inode->reserved;
-    if (!name || !buffer || !node) return -EINVAL;
 
     struct ramfs_node* child = node->childrens;
     while (child) {
@@ -65,13 +46,14 @@ int devfs_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode
             if (strcmp(child->name, name) != 0) break;
             // printf("is the one %s\n", child->name);
 
-            struct vfs_inode* inod = vfs_inode_create(inode->fs, (uint64_t)inode);
+            struct vfs_inode* inod = vfs_inode_create(inode->fs, (u64)inode);
             if (!inod) return -ENOMEM;
 
             inod->size = child->inode->size;
             inod->mode = child->inode->mode;
             inod->ops = vfs_ops[VFS_OPS_DEVFS];
             *buffer = inod;
+            printf("returning %s\n", child->name);
 
             return 0;
         }
@@ -82,7 +64,6 @@ int devfs_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode
     return -ENOENT;
 }
 int devfs_vfs_mkdir(struct vfs_inode* inode, const char* name) {
-    if (!inode || !name) return -EINVAL;
     struct ramfs_node* node = ((struct ramfs_node*)inode->reserved);
 
     struct ramfs_node* ramfs_n = kmalloc(sizeof(struct ramfs_node));
@@ -95,25 +76,52 @@ int devfs_vfs_mkdir(struct vfs_inode* inode, const char* name) {
     in->fs = inode->fs;
     in->mode = VFS_DIR;
     in->ops = vfs_ops[VFS_OPS_DEVFS];
+    in->reserved = ramfs_n;
 
     ramfs_n->name = strdup(name);
-    ramfs_n->inode->reserved = ramfs_n;
-
     ramfs_n->next = node->childrens;
+
+    // ramfs_n->last = node->childrens;
     node->childrens = ramfs_n;
 
     return 0;
 }
 
+int devfs_vfs_delete(struct vfs_inode* inode) {
+    if (inode->mode == VFS_DIR) {
+        struct ramfs_node* child = ((struct ramfs_node*)inode->reserved)->childrens;
+        while (child) {
+            devfs_vfs_delete(child->inode);
+            child = child->next;
+        }
+    }
 
+    kfree(inode);
+
+    return 0;
+}
 
 #ifdef DEBUG
     void devfs_vfs_print_node_childrens(struct vfs_inode* inode) {
         struct ramfs_node* node = ((struct ramfs_node*)inode->reserved)->childrens;
+        printf("%p\n", ((struct ramfs_node*)get_vfs_(1)->root->reserved)->childrens);
         while (node) {
-            printf("Node %s at %p %p %p\n", node->name, node, node->inode, node->next);
+            printf("Node %s at %p %p %p %p\n", node->name, node, node->inode, node->next, node->last);
 
             node = node->next;
+        }
+    }
+
+    void devfs_vfs_print_recursive_nodes(struct vfs_inode* inode) {
+        struct ramfs_node* curl = ((struct ramfs_node*)inode->reserved)->childrens;
+        while (curl) {
+            printf("Node %s", curl->name);
+            if (curl->inode->mode == VFS_DIR) {
+                printf("  \n");
+                devfs_vfs_print_recursive_nodes(curl->inode);
+            }
+
+            curl = curl->next;
         }
     }
 #endif

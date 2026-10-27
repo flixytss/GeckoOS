@@ -1,15 +1,14 @@
 #include "mem.h"
 #include "process/process.h"
 #include <stdbool.h>
-#include <stddef.h>
 #include "elf.h"
 #include <commands.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 bool is_elf_valid(Elf64_Ehdr* hdr) {
     if (!hdr) return false;
-    if (*(uint32_t*)&hdr->e_ident[0] != *(uint32_t*)ELFMAG) return false;
+    if (*(u32*)&hdr->e_ident[0] != *(u32*)ELFMAG) return false;
     return true;
 }
 
@@ -43,7 +42,7 @@ bool is_elf_supported(Elf64_Ehdr *hdr) {
 }
 
 // Helpers
-static Elf64_Shdr* elf_sheader(Elf64_Ehdr* hdr) { return (Elf64_Shdr*)((uint64_t)hdr + hdr->e_shoff); }
+static Elf64_Shdr* elf_sheader(Elf64_Ehdr* hdr) { return (Elf64_Shdr*)((u64)hdr + hdr->e_shoff); }
 static Elf64_Shdr* elf_section(Elf64_Ehdr* hdr, int idx) { return &elf_sheader(hdr)[idx]; }
 
 static char* elf_str_table(Elf64_Ehdr* hdr) {
@@ -61,11 +60,11 @@ static Elf64_Sym* elf_lookup_symbol() {
 
 }
 
-static uint64_t elf_get_symval(Elf64_Ehdr* hdr, int table, uint32_t idx) {
+static u64 elf_get_symval(Elf64_Ehdr* hdr, int table, u32 idx) {
 	if(table == SHN_UNDEF || idx == SHN_UNDEF) return 0;
 	Elf64_Shdr* symtab = elf_section(hdr, table);
 
-	uint32_t symtab_entries = symtab->sh_size / symtab->sh_entsize;
+	u32 symtab_entries = symtab->sh_size / symtab->sh_entsize;
 	if (idx >= symtab_entries) {
 		printf("Symbol Index out of Range (%d:%u).\n", table, idx);
 		return -1;
@@ -91,7 +90,7 @@ static uint64_t elf_get_symval(Elf64_Ehdr* hdr, int table, uint32_t idx) {
                 return -1;
             }
         } else {
-            return (uint64_t)target;
+            return (u64)target;
         }
     } else if(symbol->st_shndx == SHN_ABS) {
 		// Absolute symbol
@@ -99,7 +98,7 @@ static uint64_t elf_get_symval(Elf64_Ehdr* hdr, int table, uint32_t idx) {
 	} else {
 		// Internally defined symbol
 		Elf64_Shdr* target = elf_section(hdr, symbol->st_shndx);
-		return (uint64_t)hdr + symbol->st_value + target->sh_offset;
+		return (u64)hdr + symbol->st_value + target->sh_offset;
 	}
 
     return -1;
@@ -108,7 +107,7 @@ static uint64_t elf_get_symval(Elf64_Ehdr* hdr, int table, uint32_t idx) {
 void elf_load_stage1(Elf64_Ehdr* hdr) {
 	Elf64_Shdr* shdr = elf_sheader(hdr);
 
-	for (uint32_t i = 0; i < hdr->e_shnum; i++) {
+	for (u32 i = 0; i < hdr->e_shnum; i++) {
 		Elf64_Shdr* section = &shdr[i];
 
 		// printf ("%d\n", section->sh_type);
@@ -119,7 +118,7 @@ void elf_load_stage1(Elf64_Ehdr* hdr) {
 				void* m = kmalloc(section->sh_size);
 				memset(m, 0, section->sh_size);
 
-				section->sh_offset = (uint64_t)m - (uint64_t)hdr;
+				section->sh_offset = (u64)m - (u64)hdr;
 				printf("Allocated memory for a section (%ld).\n", section->sh_size);
 			}
 		}
@@ -130,12 +129,12 @@ int elf_do_reloc(Elf64_Ehdr* hdr, Elf64_Rel* rel, Elf64_Shdr* reltab);
 int elf_load_stage2(Elf64_Ehdr* hdr) {
 	Elf64_Shdr* shdr = elf_sheader(hdr);
 
-	for (uint32_t i = 0; i < hdr->e_shnum; i++) {
+	for (u32 i = 0; i < hdr->e_shnum; i++) {
 		Elf64_Shdr* section = &shdr[i];
 
 		if (section->sh_type == SHT_REL) {
-			for (uint32_t idx = 0; idx < section->sh_size / section->sh_entsize; idx++) {
-				Elf64_Rel* rel = &((Elf64_Rel*)((uint64_t)hdr + section->sh_offset))[idx];
+			for (u32 idx = 0; idx < section->sh_size / section->sh_entsize; idx++) {
+				Elf64_Rel* rel = &((Elf64_Rel*)((u64)hdr + section->sh_offset))[idx];
 
 				if (elf_do_reloc(hdr, rel, section) == -1) {
 					printf("Failed to relocate symbol.\n");
@@ -153,7 +152,7 @@ int elf_load_stage2(Elf64_Ehdr* hdr) {
 int elf_do_reloc(Elf64_Ehdr* hdr, Elf64_Rel* rel, Elf64_Shdr* reltab) {
 	Elf64_Shdr* target = elf_section(hdr, reltab->sh_info);
 
-	uint64_t addr = (uint64_t)hdr + target->sh_offset;
+	u64 addr = (u64)hdr + target->sh_offset;
 	int* ref = (int*)(addr + rel->r_offset);
 
 	int symval = 0;
@@ -172,7 +171,7 @@ int elf_do_reloc(Elf64_Ehdr* hdr, Elf64_Rel* rel, Elf64_Shdr* reltab) {
 			break;
 		case R_386_PC32:
 			// Symbol + Offset - Section Offset
-			*ref = DO_386_PC32(symval, *ref, (uint64_t)ref);
+			*ref = DO_386_PC32(symval, *ref, (u64)ref);
 			break;
 		default:
 			// Relocation type not supported, display error and return
@@ -204,25 +203,25 @@ void* elf_load_file(void* file) {
 			elf_load_stage2(hdr);
 			Elf64_Shdr* shdr = elf_sheader(hdr);
 
-			uint64_t data;
-			for (uint32_t i = 0; i < hdr->e_shnum; i++) {
+			u64 data;
+			for (u32 i = 0; i < hdr->e_shnum; i++) {
 				Elf64_Shdr section = shdr[i];
 
 				printf("%s %d\n", elf_lookup_string(hdr, section.sh_name), section.sh_offset);
 				for (int i = 0; i < section.sh_size; i++) {
-					printf("%X ", *(uint8_t*)(((uint64_t)hdr + section.sh_offset) + i));
+					printf("%X ", *(u8*)(((u64)hdr + section.sh_offset) + i));
 				} printf("\n");
-				if (elf_lookup_string(hdr, section.sh_name)[1] == 'd') data = (uint64_t)hdr + section.sh_offset;
+				if (elf_lookup_string(hdr, section.sh_name)[1] == 'd') data = (u64)hdr + section.sh_offset;
 			}
-			for (uint32_t i = 0; i < hdr->e_shnum; i++) {
+			for (u32 i = 0; i < hdr->e_shnum; i++) {
 				Elf64_Shdr section = shdr[i];
 
 				printf("%s %d\n", elf_lookup_string(hdr, section.sh_name), section.sh_offset);
 				for (int i = 0; i < section.sh_size; i++) {
-					printf("%X ", *(uint8_t*)(((uint64_t)hdr + section.sh_offset) + i));
+					printf("%X ", *(u8*)(((u64)hdr + section.sh_offset) + i));
 				} printf("\n");
 				if (elf_lookup_string(hdr, section.sh_name)[1] == 't') {
-					create_process(hdr + section.sh_offset, (uint64_t)hdr + section.sh_offset, (void*)data, data);
+					create_process(hdr + section.sh_offset, (u64)hdr + section.sh_offset, (void*)data, data);
 				}
 			}
 			return NULL;

@@ -3,7 +3,7 @@
 #ifndef ATA_H
 #define ATA_H
 
-#include <stdint.h>
+#include "sys/types.h"
 
 #define ATA_PRIMARY_BASE    0x1F0
 #define ATA_SECONDARY_BASE  0x1E8 // Through 0x1EF
@@ -48,7 +48,7 @@ void ata_init(void);
 
 int ata_drive_present(int drive);
 
-int ata_read_sectors(int drive, uint32_t lba, uint8_t count, uint8_t *buf);
-int ata_write_sectors(int drive, uint32_t lba, uint8_t count, const uint8_t *buf);
+int ata_read_sectors(int drive, u32 lba, u8 count, u8 *buf);
+int ata_write_sectors(int drive, u32 lba, u8 count, const u8 *buf);
 
 #endif // ATA_H

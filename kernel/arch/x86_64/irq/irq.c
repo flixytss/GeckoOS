@@ -4,7 +4,7 @@
 #include <arch/x86_64/idt.h>
 #include <arch/x86_64/isr.h>
 #include <ports.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 #include <terminal/terminal.h>
 
@@ -62,7 +62,7 @@ void nonapic_irq_handler(registers_t *regs) {
 extern bool has_apic;
 void irq_install() {
     for (int i = 32; i < 254; i++)
-        idt_set_gate(i, (uint64_t)irq_stub_table[i-32], 0x08, 0x8E);
+        idt_set_gate(i, (u64)irq_stub_table[i-32], 0x08, 0x8E);
     if (has_apic) {
         irq_routines_table[16][0] = (isr_t)lapic_timer_handler;
         irq_handler = apic_irq_handler;

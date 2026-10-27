@@ -1,25 +1,25 @@
 #ifndef _IDT_H
 #define _IDT_H
 
-#include <stdint.h>
+#include "sys/types.h"
 #include <arch/x86_64/isr.h>
 
 struct idt_entry_struct
 {
-    uint16_t base_lo;
-    uint16_t sel;
-    uint8_t  ist;       /* Interrupt Stack Table index (0 = legacy stack) */
-    uint8_t  flags;
-    uint16_t base_mid;
-    uint32_t base_hi;
-    uint32_t zero;      /* reserved */
+    u16 base_lo;
+    u16 sel;
+    u8  ist;       /* Interrupt Stack Table index (0 = legacy stack) */
+    u8  flags;
+    u16 base_mid;
+    u32 base_hi;
+    u32 zero;      /* reserved */
 } __attribute__((packed));
 typedef struct idt_entry_struct idt_entry_t;
 
 struct idt_ptr_struct
 {
-    uint16_t limit;
-    uint64_t base;      /* 64-bit base address */
+    u16 limit;
+    u64 base;      /* 64-bit base address */
 } __attribute__((packed));
 typedef struct idt_ptr_struct idt_ptr_t;
 
@@ -57,8 +57,8 @@ extern void isr29();
 extern void isr30();
 extern void isr31();
 
-extern void idt_flush(uint64_t);
+extern void idt_flush(u64);
 void init_idt();
-void idt_set_gate(uint8_t num, uint64_t base, uint16_t sel, uint8_t flags);
+void idt_set_gate(u8 num, u64 base, u16 sel, u8 flags);
 
 #endif

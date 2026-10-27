@@ -2,7 +2,7 @@
 #include "drivers/pit.h"
 #include "ports.h"
 #include <drivers/ide.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 struct IDEChannelRegisters {
@@ -138,11 +138,11 @@ unsigned char ide_print_error(unsigned int drive, unsigned char err) {
     return err;
 }
 
-static long ide_drives_read(struct kdrive_t* drive, uint64_t lba, uint64_t count, uint8_t* buffer) {
-    return ide_ata_access(ATA_READ, drive->userdata1, lba, count, 0, (uint32_t)buffer);
+static long ide_drives_read(struct kdrive_t* drive, u64 lba, size_t count, u8* buffer) {
+    return ide_ata_access(ATA_READ, drive->userdata1, lba, count, 0, (u32)buffer);
 }
-static long ide_drives_write(struct kdrive_t* drive, uint64_t lba, uint64_t count, const uint8_t* buffer) {
-    return ide_ata_access(ATA_WRITE, drive->userdata1, lba, count, 0, (uint32_t)buffer);
+static long ide_drives_write(struct kdrive_t* drive, u64 lba, size_t count, const u8* buffer) {
+    return ide_ata_access(ATA_WRITE, drive->userdata1, lba, count, 0, (u32)buffer);
 }
 
 void ide_init(unsigned int BAR0, unsigned int BAR1, unsigned int BAR2, unsigned int BAR3, unsigned int BAR4) {
@@ -447,7 +447,7 @@ unsigned char ide_atapi_read(unsigned char drive, unsigned int lba, unsigned cha
     return 0; // Easy, ... Isn't it?
 }
 
-uint8_t package[1];
+u8 package[1];
 
 void ide_read_sectors(unsigned char drive, unsigned char numsects, unsigned int lba, unsigned short es, unsigned int edi) {
     // 1: Check if the drive presents:

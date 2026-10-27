@@ -6,8 +6,8 @@
 #define ARP_CACHE_SIZE 16
 
 typedef struct {
-    uint32_t ip;
-    uint8_t  mac[6];
+    u32 ip;
+    u8  mac[6];
     int      valid;
 } arp_entry_t;
 
@@ -18,13 +18,13 @@ void arp_init(void) {
         arp_cache[i].valid = 0;
 }
 
-void arp_handle(uint8_t *data, uint16_t len) {
+void arp_handle(u8 *data, u16 len) {
     (void)len;
     arp_packet_t *arp = (arp_packet_t *)data;
 
-    uint16_t op = __builtin_bswap16(arp->op);
-    uint32_t target_ip = __builtin_bswap32(arp->target_ip);
-    uint32_t sender_ip = __builtin_bswap32(arp->sender_ip);
+    u16 op = __builtin_bswap16(arp->op);
+    u32 target_ip = __builtin_bswap32(arp->target_ip);
+    u32 sender_ip = __builtin_bswap32(arp->sender_ip);
 
     if (op == ARP_OP_REQUEST && target_ip == net_ip) {
         arp_packet_t reply;
@@ -62,7 +62,7 @@ void arp_handle(uint8_t *data, uint16_t len) {
     }
 }
 
-void arp_request(uint32_t target_ip) {
+void arp_request(u32 target_ip) {
     arp_packet_t req;
     req.hw_type    = __builtin_bswap16(ARP_HWTYPE_ETHER);
     req.proto_type = __builtin_bswap16(ARP_PROTYPE_IPV4);
@@ -80,7 +80,7 @@ void arp_request(uint32_t target_ip) {
     net_send_frame(MAC_BROADCAST, ETHER_TYPE_ARP, &req, sizeof(arp_packet_t));
 }
 
-int arp_resolve(uint32_t ip, uint8_t out_mac[6]) {
+int arp_resolve(u32 ip, u8 out_mac[6]) {
     for (int i = 0; i < ARP_CACHE_SIZE; i++) {
         if (arp_cache[i].valid && arp_cache[i].ip == ip) {
             memcpy(out_mac, arp_cache[i].mac, 6);

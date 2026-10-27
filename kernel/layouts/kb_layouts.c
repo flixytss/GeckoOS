@@ -1,6 +1,6 @@
 // Added by MorganPG1 to make implementation of https://github.com/Ember2819/Random-People-Coding-Stuff/issues/32 easier
 #include <layouts/kb_layouts.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include "terminal/printf.h"
 #include "mem.h"
 
@@ -73,7 +73,7 @@ char ScASCII[128];
 char ScASCII_UPPER[128];
 
 KeyState KEYSTATE;
-uint8_t ActualLayoutId = 0;
+u8 ActualLayoutId = 0;
 
 unsigned char scancode_to_ascii(scancode_t scancode)
 {

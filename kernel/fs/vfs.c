@@ -2,48 +2,11 @@
 #include "fs/fat32.h"
 #include "fs/devfs.h"
 #include "mem.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 #include "sys/errno.h"
 
 struct vfs_inode_ops* vfs_ops[4]; // 0 = FAT32, 1 = devfs
-struct vfs_filesystem* vfs[16];
-
-struct vfs_filesystem* root_vfs;
-
-static struct vfs_inode* vfs_cache;
-
-struct vfs_inode* vfs_inode_find(struct vfs_filesystem* fs, uint64_t ino) {
-    struct vfs_inode* curl = vfs_cache;
-
-    while (curl) {
-        if (curl->fs == fs && curl->ino == ino) return curl;
-
-        curl = curl->next;
-    }
-
-    return NULL;
-}
-struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, uint64_t ino) {
-    if (!fs) return NULL;
-
-    struct vfs_inode* inode;
-    if ((inode = vfs_inode_find(fs, ino))) return inode;
-
-    inode = kmalloc(sizeof(struct vfs_inode));
-    if (!inode) return NULL;
-
-    memset(inode, 0, sizeof(struct vfs_inode));
-
-    inode->fs = fs;
-    inode->ino = ino;
-
-    inode->next = vfs_cache;
-    vfs_cache = inode;
-
-    return inode;
-}
 
 void vfs_fat32_init() {
     if (vfs_ops[VFS_OPS_FAT32]) return;
@@ -63,7 +26,42 @@ void vfs_devfs_init() {
     ops->write = devfs_vfs_write;
     ops->mkdir = devfs_vfs_mkdir;
 }
-void vfs_add(struct drive_fs_t* fs) {
+
+struct vfs_filesystem* vfs[16];
+struct vfs_filesystem* root_vfs;
+static struct vfs_inode* vfs_cache;
+
+struct vfs_inode* vfs_inode_find(struct vfs_filesystem* fs, u64 ino) {
+    struct vfs_inode* curl = vfs_cache;
+
+    while (curl) {
+        if (curl->fs == fs && curl->ino == ino) return curl;
+
+        curl = curl->next;
+    }
+
+    return NULL;
+}
+struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, u64 ino) {
+    if (!fs) return NULL;
+
+    struct vfs_inode* inode;
+    if ((inode = vfs_inode_find(fs, ino))) return inode;
+
+    inode = kmalloc(sizeof(struct vfs_inode));
+    if (!inode) return NULL;
+
+    memset(inode, 0, sizeof(struct vfs_inode));
+
+    inode->fs = fs;
+    inode->ino = ino;
+
+    inode->next = vfs_cache;
+    vfs_cache = inode;
+
+    return inode;
+}
+void vfs_add_fs(struct drive_fs_t* fs) {
     int index = 0;
     while (vfs[index]) index++;
 
@@ -89,8 +87,8 @@ void vfs_add_vfs(struct vfs_filesystem* fs) {
 struct vfs_filesystem* get_vfs_(int index) { return vfs[index]; }
 void vfs_set_root_(struct vfs_filesystem* vfs) { root_vfs = vfs; }
 
-// if inode is null, then this will use the root directory
-int vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer) { return inode ? (inode->mode == VFS_DIR ? inode->ops->lookup(inode, name, buffer) : -ENOTDIR) : root_vfs->root->ops->lookup(root_vfs->root, name, buffer); }
+int vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer)
+    { return inode->ops->lookup(inode, name, buffer); }
 
 int vfs_lookup_path(char *name, struct vfs_inode** buffer) {
     if (!name || !buffer || !root_vfs) return -EINVAL;
@@ -98,12 +96,19 @@ int vfs_lookup_path(char *name, struct vfs_inode** buffer) {
     char* tok = strtok((char*)name, "/");
 
     struct vfs_inode* search_in = root_vfs->root;
+    if (!search_in) return -EINVAL;
 
-    // struct vfs_inode next;
+    printf("starting loop\n");
     while (tok) {
-        if (search_in->mount)
+        printf("loop %p\n", search_in);
+        if (search_in) if (vfs_lookup(search_in, tok, &search_in) != 0) return -ENOENT;
+        printf("ending search %p\n", search_in->mount->root);
+        // for(;;);
+        if (search_in->mount) {
             search_in = search_in->mount->root;
-        if (vfs_lookup(search_in, tok, &search_in) != 0) return -ENOENT;
+            // printf("mouting %p\n", ((struct ramfs_node*)search_in->mount->root->reserved)->name);
+        }
+        printf("ending search %p %p %s\n", search_in->mount->fs, get_vfs_(1), tok);
 
         tok = strtok(NULL, "/");
     }
@@ -112,9 +117,9 @@ int vfs_lookup_path(char *name, struct vfs_inode** buffer) {
     return 0;
 }
 
-size_t vfs_read(struct vfs_inode* inode, uint8_t* buffer, size_t count, size_t offset)
+size_t vfs_read(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset)
     { return inode ? (inode->mode == VFS_FILE ? inode->ops->read(inode, offset, buffer, count) : -EISDIR) : root_vfs->root->ops->read(root_vfs->root, offset, buffer, count); }
-size_t vfs_write(struct vfs_inode* inode, uint8_t* buffer, size_t count, size_t offset)
+size_t vfs_write(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset)
     { return inode->mode == VFS_FILE ? inode->ops->write(inode, offset, buffer, count) : -EISDIR; }
 
 int vfs_mount(const char* name, struct vfs_filesystem* vfs) {
@@ -144,34 +149,34 @@ int vfs_umount(const char* name) {
     return 0;
 }
 
-int vfs_mkdir(struct vfs_inode* inode, const char* name)
-{
-    // printf("%p %p %p %d %p %p\n", inode->ops->mkdir, inode, name, inode->ops == vfs_ops[VFS_OPS_DEVFS], inode->ops, vfs_ops[VFS_OPS_DEVFS]);
-    // for(;;);
-
+int vfs_mkdir(struct vfs_inode* inode, const char* name) {
+    if (!inode) return -EINVAL;
     return inode->ops->mkdir(inode, name);
 }
 
 int vfs_mkdir_path(const char* name) {
-    // printf("mkdir %s\n", name);
     if (!name) return -EINVAL;
 
     char* tok = strtok((char*)name, "/");
 
     struct vfs_inode* search_in = root_vfs->root;
+    if (!search_in) return -EINVAL;
 
     while (tok) {
-        if (search_in->mount) {
+        if (search_in->mount)
             search_in = search_in->mount->root;
-            // printf("MOUNT\n"); for(;;);
-        }
-        if (vfs_lookup(search_in, tok, &search_in) != 0) {
-            // this is the last directory, the next one dosen't exists yet
+        if (vfs_lookup(search_in, tok, &search_in) != 0)
             return vfs_mkdir(search_in, tok);
-        }
+        else {printf("going into %p %s\n", search_in, tok);}
 
         tok = strtok(NULL, "/");
     }
 
     return -ENOMEM;
+}
+
+int vfs_delete(struct vfs_inode* inode) {
+    if (!inode) return -EINVAL;
+
+    return inode->ops->delete(inode);
 }

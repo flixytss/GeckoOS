@@ -21,7 +21,7 @@
 #include <drivers/ata.h>
 #include <fs/fs.h>
 #include <fs/fat32.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <drivers/pci.h>
 #include <stdbool.h>
 #include <net/net.h>
@@ -30,7 +30,7 @@
 #include <drivers/e1000.h>
 #include <boot/multiboot2.h>
 
-extern uint32_t memsize_grub;
+extern u32 memsize_grub;
 
 // Command table
 static Command commands[] = {
@@ -138,7 +138,7 @@ static const char* help_lines[] = {
 // This file will be useless if someone implements elfs, but at least this file if very good to debug
 struct dentry actual_path;
 
-static void cmd_help(uint8_t color) {
+static void cmd_help(u8 color) {
     int num_lines = 0;
     while (help_lines[num_lines] != 0) num_lines++;
 
@@ -186,11 +186,11 @@ static void cmd_help(uint8_t color) {
     }
 }
 
-static void cmd_hello(uint8_t color) {
+static void cmd_hello(u8 color) {
     printc("\nHello, world!\n", color);
 }
 
-static void cmd_contributors(uint8_t color) {
+static void cmd_contributors(u8 color) {
     printc("\n--- Contributors ---\n", color);
     printc("Ember2819 - Founder\n", BOLD_COLOR);
     printc("Sifi11\n", color);
@@ -214,30 +214,30 @@ static void cmd_contributors(uint8_t color) {
     printc("nfoxers\n", color);
 }
 
-static void cmd_setkeyswe(uint8_t color) {
+static void cmd_setkeyswe(u8 color) {
     set_layout(PS2_LAYOUTS[1]);
     printc("\nKeyboard layout set to Swedish QWERTY\n", color);
 }
 
-static void cmd_setkeyus(uint8_t color) {
+static void cmd_setkeyus(u8 color) {
     set_layout(PS2_LAYOUTS[0]);
     printc("\nKeyboard layout set to US QWERTY\n", color);
 }
 
-static void cmd_setkeyuk(uint8_t color) {
+static void cmd_setkeyuk(u8 color) {
     set_layout(PS2_LAYOUTS[2]);
     printc("\nKeyboard layout set to UK QWERTY\n", color);
 }
 
-static void cmd_clear(uint8_t color) {
+static void cmd_clear(u8 color) {
     terminal_clear(color);
 }
 
-static void cmd_version(uint8_t color) {
+static void cmd_version(u8 color) {
     printc("\nGeckoOS v2.0 (GRUB/Multiboot2)\n", color);
 }
 
-static void cmd_chars(uint8_t color) {
+static void cmd_chars(u8 color) {
     printc("\n\n  ", color);
     for (int i = 1; i < 256; i++) {
         if (i == 9 || i == 10) {
@@ -252,18 +252,18 @@ static void cmd_chars(uint8_t color) {
     printc("\n", color);
 }
 
-static void cmd_sleep5(uint8_t color) {
+static void cmd_sleep5(u8 color) {
     print("\nSleeping for 5 seconds...\n");
     pit_timer_wait_s(5);
     print("Done!\n");
 }
 
-static void cmd_reboot(uint8_t color) {
+static void cmd_reboot(u8 color) {
     print("\nRebooting...");
     reboot();
 }
 
-static void cmd_print_ticks(uint8_t color) {
+static void cmd_print_ticks(u8 color) {
     print("\nLapic tick: ");
     print_int(lapic_timer_tick);
     print("\n");
@@ -272,7 +272,7 @@ static void cmd_print_ticks(uint8_t color) {
     print("\n");
 }
 
-static void cmd_fsmount(uint8_t color) {
+static void cmd_fsmount(u8 color) {
     putchar('\n', color);
     for (int i = 1; i < 6; i++) {
         printf("Trying drive %d", i);
@@ -280,7 +280,7 @@ static void cmd_fsmount(uint8_t color) {
     }
 }
 
-static void cmd_ls(uint8_t color) {
+static void cmd_ls(u8 color) {
     struct fs_entries_t entries;
     int i;
     print("\n");
@@ -298,9 +298,10 @@ static void cmd_ls(uint8_t color) {
         printc(entries.entries[i].dir.name, color);
         printc("\n", color);
     }
+    kfree(entries.entries);
 }
 
-static void cmd_cat(uint8_t color) {
+static void cmd_cat(u8 color) {
     #if 0
     struct fs_entries_t entries;
     unsigned char fname[32];
@@ -335,7 +336,7 @@ static void cmd_cat(uint8_t color) {
         return;
     }
 
-    uint8_t readbuf[128];
+    u8 readbuf[128];
     int bytes, j = 0;
     while ((bytes = entries.entries[found].file.read(
             (void*)&entries.entries[found].file, j * 128, 128, readbuf)) > 0) {
@@ -347,7 +348,7 @@ static void cmd_cat(uint8_t color) {
     #endif
 }
 
-static void cmd_fsinfo(uint8_t color) {
+static void cmd_fsinfo(u8 color) {
     if (!fss[actual_fs]) {
         printc("\nFilesystem not mounted. Run 'fsmount' first.\n", VGA_COLOR_RED);
         return;
@@ -356,7 +357,7 @@ static void cmd_fsinfo(uint8_t color) {
     fat32_print_info(fss[actual_fs], color);
 }
 
-static void cmd_touch(uint8_t color) {
+static void cmd_touch(u8 color) {
     unsigned char fname[32];
     unsigned char content[256];
 
@@ -369,7 +370,7 @@ static void cmd_touch(uint8_t color) {
     printc("\n", color);
 
     int result = fat32_create_file(fss[actual_fs], (char*)fname,
-                                   (const uint8_t*)content, strlen((char*)content));
+                                   (const u8*)content, strlen((char*)content));
     if (result == 0) {
         printc("File created: ", color);
         printc((char*)fname, color);
@@ -379,7 +380,7 @@ static void cmd_touch(uint8_t color) {
     }
 }
 
-static void cmd_rm(uint8_t color) {
+static void cmd_rm(u8 color) {
     unsigned char fname[32];
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
@@ -406,7 +407,7 @@ static void cmd_rm(uint8_t color) {
     }
 }
 
-static void cmd_cp(uint8_t color) {
+static void cmd_cp(u8 color) {
     #if 0
     unsigned char src[32], dst[32];
     if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
@@ -438,10 +439,10 @@ static void cmd_cp(uint8_t color) {
         return;
     }
 
-    static uint8_t copybuf[4096];
+    static u8 copybuf[4096];
     int total = 0, chunk, j = 0;
     while (total < 4096) {
-        uint8_t tmp[128];
+        u8 tmp[128];
         chunk = entries.entries[found].file.read(
             (void*)&entries.entries[found].file, j * 128, 128, tmp);
         if (chunk <= 0) break;
@@ -461,7 +462,7 @@ static void cmd_cp(uint8_t color) {
     #endif
 }
 
-static void cmd_mv(uint8_t color) {
+static void cmd_mv(u8 color) {
     #if 0
     unsigned char src[32], dst[32];
     if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
@@ -490,10 +491,10 @@ static void cmd_mv(uint8_t color) {
 
     if (found < 0) { printc("Source not found.\n", VGA_COLOR_RED); return; }
 
-    static uint8_t mvbuf[4096];
+    static u8 mvbuf[4096];
     int total = 0, chunk, j = 0;
     while (total < 4096) {
-        uint8_t tmp[128];
+        u8 tmp[128];
         chunk = entries.entries[found].file.read(
             (void*)&entries.entries[found].file, j * 128, 128, tmp);
         if (chunk <= 0) break;
@@ -514,7 +515,7 @@ static void cmd_mv(uint8_t color) {
     #endif
 }
 
-static void cmd_mkdir(uint8_t color) {
+static void cmd_mkdir(u8 color) {
     unsigned char dname[200];
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
@@ -532,7 +533,7 @@ static void cmd_mkdir(uint8_t color) {
     }
 }
 
-static void cmd_echo(uint8_t color) {
+static void cmd_echo(u8 color) {
     unsigned char msg[256];
     printc("\n", color);
     input(msg, 256, color);
@@ -541,7 +542,7 @@ static void cmd_echo(uint8_t color) {
     printc("\n", color);
 }
 
-static void cmd_write(uint8_t color) {
+static void cmd_write(u8 color) {
     unsigned char fname[32];
     unsigned char content[256];
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
@@ -553,7 +554,7 @@ static void cmd_write(uint8_t color) {
     printc("\n", color);
 
     // int result = fat32_append_file(fs[actual_fs], (char*)fname,
-    //                                (const uint8_t*)content, strlen((char*)content));
+    //                                (const u8*)content, strlen((char*)content));
     if (0 == 0) {
         printc("Appended to: ", color);
         printc((char*)fname, color);
@@ -563,11 +564,11 @@ static void cmd_write(uint8_t color) {
     }
 }
 
-static void cmd_uptime(uint8_t color) {
-    uint32_t ticks = pit_timer;
-    uint32_t seconds = ticks / PITHZ;
-    uint32_t minutes = seconds / 60;
-    uint32_t hours   = minutes / 60;
+static void cmd_uptime(u8 color) {
+    u32 ticks = pit_timer;
+    u32 seconds = ticks / PITHZ;
+    u32 minutes = seconds / 60;
+    u32 hours   = minutes / 60;
     seconds %= 60;
     minutes %= 60;
 
@@ -582,7 +583,7 @@ static void cmd_uptime(uint8_t color) {
     printc(" ticks)\n", color);
 }
 
-static void cmd_meminfo(uint8_t color) {
+static void cmd_meminfo(u8 color) {
     extern struct multiboot2_mmap_entry max_mem_used;
 
     printc("\nMemory:\n", color);
@@ -596,11 +597,11 @@ static void cmd_meminfo(uint8_t color) {
 
 static GkState gk_state;
 
-static void cmd_gk(uint8_t color) {
+static void cmd_gk(u8 color) {
     printc("\nGeckoOS scripting language is running!\n", color);
 }
 
-static void cmd_gk_run_file(const char* filename, uint8_t color) {
+static void cmd_gk_run_file(const char* filename, u8 color) {
     #if 0
     if (!fs[actual_fs]) {
         printc("\nFilesystem not mounted. Run 'fsmount' first.\n", VGA_COLOR_RED);
@@ -634,7 +635,7 @@ static void cmd_gk_run_file(const char* filename, uint8_t color) {
     static char src_buf[GK_MAX_SRC];
     int total = 0, chunk, offset = 0;
     while (total < GK_MAX_SRC - 1) {
-        uint8_t tmp[128];
+        u8 tmp[128];
         chunk = entries.entries[found].file.read(
             (void*)&entries.entries[found].file, offset, 128, tmp);
         if (chunk <= 0) break;
@@ -650,14 +651,14 @@ static void cmd_gk_run_file(const char* filename, uint8_t color) {
     #endif
 }
 
-static void cmd_lspci(uint8_t color) {
+static void cmd_lspci(u8 color) {
     printf("\n");
     (void)color;
     pci_lspci();
 }
 
-static uint32_t parse_ip(const char *str) {
-    uint32_t a = 0, b = 0, c = 0, d = 0;
+static u32 parse_ip(const char *str) {
+    u32 a = 0, b = 0, c = 0, d = 0;
     int i = 0;
     while (*str >= '0' && *str <= '9') { a = a * 10 + (*str - '0'); str++; }
     if (*str == '.') str++; i++;
@@ -669,7 +670,7 @@ static uint32_t parse_ip(const char *str) {
     return IP(a, b, c, d);
 }
 
-static void print_ip(uint32_t ip) {
+static void print_ip(u32 ip) {
     print_int((ip >> 24) & 0xFF);
     printc(".", VGA_COLOR_LIGHT_GREY);
     print_int((ip >> 16) & 0xFF);
@@ -680,14 +681,14 @@ static void print_ip(uint32_t ip) {
 }
 
 static void process_rx_packets(void) {
-    uint8_t buf[2048];
-    uint16_t len;
+    u8 buf[2048];
+    u16 len;
     while (e1000_receive(buf, &len) == 0) {
         net_handle_packet(buf, len);
     }
 }
 
-static void cmd_ping(uint8_t color) {
+static void cmd_ping(u8 color) {
     (void)color;
 
     printc("\nUsage: ping <ip> (e.g. ping 10.0.2.2)\n", VGA_COLOR_LIGHT_GREY);
@@ -705,7 +706,7 @@ static void cmd_ping(uint8_t color) {
         return;
     }
 
-    uint32_t target_ip = parse_ip((char *)ip_str);
+    u32 target_ip = parse_ip((char *)ip_str);
     printc("Pinging ", color);
     print_ip(target_ip);
     printc(" ...\n", color);
@@ -714,7 +715,7 @@ static void cmd_ping(uint8_t color) {
 
     int tick_start = lapic_timer_tick;
     int resolved = 0;
-    uint8_t mac[6];
+    u8 mac[6];
 
     while (lapic_timer_tick - tick_start < 100) {
         process_rx_packets();
@@ -733,7 +734,7 @@ static void cmd_ping(uint8_t color) {
 
     int sent = 0;
     int received = 0;
-    uint16_t ping_id = 0x1234;
+    u16 ping_id = 0x1234;
 
     for (int i = 0; i < 4; i++) {
         icmp_clear_reply();
@@ -792,7 +793,7 @@ static void cmd_ping(uint8_t color) {
     printc("\n", color);
 }
 
-static void cmd_runelf(uint8_t color) {
+static void cmd_runelf(u8 color) {
     unsigned char filename[32];
 
     printf("\nEnter the filename: ");
@@ -811,31 +812,31 @@ static void cmd_runelf(uint8_t color) {
     #endif
 }
 
-static void cmd_processes(uint8_t color) {
+static void cmd_processes(u8 color) {
     printf("\nProcesses count: %d\n", nr_processes);
 }
 
-static void cmd_show_usb(uint8_t color) {
+static void cmd_show_usb(u8 color) {
     printf("\n");
-    for (int i = 0; i < USBDevices_Count; i++)
-        printf("%s USB (%02X:%02X.%x)\n", USBTypesTable[USBDevices[i].type], USBDevices[i].data.controller->bus, USBDevices[i].data.controller->slot, USBDevices[i].data.controller->func);
+    for (int i = 0; i < usb_devices_count; i++) {}
+        // printf("%s USB (%02X:%02X.%x)\n", USBTypesTable[usb_devices[i].type], usb_devices[i].data.controller->bus, usb_devices[i].data.controller->slot, usb_devices[i].data.controller->func);
 }
 
-static void cmd_show_usb_info(uint8_t color) {
+static void cmd_show_usb_info(u8 color) {
     // Shows info about every connected USB that is supported
-    
+
     printf("\n");
-    for (int i = 0; i < USBDevices_Count; i++) {
-        bool connected = USBDevices[i].IsConnected(&USBDevices[i].data);
-        printf("%s USB (%02X:%02X.%d)%s\n", USBTypesTable[USBDevices[i].type], ((struct PCIDevice*)USBDevices[i].data.controller)->bus, ((struct PCIDevice*)USBDevices[i].data.controller)->slot, ((struct PCIDevice*)USBDevices[i].data.controller)->func, connected ? "" : " (Disconnected)");
+    for (int i = 0; i < usb_devices_count; i++) {
+        bool connected = usb_devices[i].is_connected(&usb_devices[i]);
+        printf("%s USB %s\n", usb_types_table[usb_devices[i].type], connected ? "" : " (Disconnected)");
         if (!connected) continue;
 
         struct usb_string_descriptor string;
-        GetUSBStringIndex(USBDevices[i], &string, 0, 0);
+        usb_get_string(&usb_devices[i], &string, 0, 0);
 
-        uint16_t default_code = 0x0409;
+        u16 default_code = 0x0409;
         bool found = false;
-        for (int y = 0; y < (string.header.bLength - 2) / sizeof(uint16_t); y++)
+        for (int y = 0; y < (string.header.bLength - 2) / sizeof(u16); y++)
             if (string.string[y] == default_code) found = true;
         if (!found) default_code = string.string[(string.header.bLength - 2) / 2];
 
@@ -844,17 +845,17 @@ static void cmd_show_usb_info(uint8_t color) {
         struct usb_configuration_descriptor config;
         struct usb_string_descriptor config_string;
 
-        if (USBDevices[i].data.device_descriptor.iProduct) GetUSBStringIndex(USBDevices[i], &product, USBDevices[i].data.device_descriptor.iProduct, default_code);
-        if (USBDevices[i].data.device_descriptor.iManufacter) GetUSBStringIndex(USBDevices[i], &manufacter, USBDevices[i].data.device_descriptor.iManufacter, default_code);
+        if (usb_devices[i].data.device_descriptor.iProduct) usb_get_string(&usb_devices[i], &product, usb_devices[i].data.device_descriptor.iProduct, default_code);
+        if (usb_devices[i].data.device_descriptor.iManufacter) usb_get_string(&usb_devices[i], &manufacter, usb_devices[i].data.device_descriptor.iManufacter, default_code);
 
-        SendUSBPacket(&USBDevices[i], (struct usb_setup_packet){
+        usb_devices[i].set_control_tranfer(&usb_devices[i], usb_devices[i].data.pipes[0], (struct usb_setup_packet){
             .requesttype = 0x80,
             .request = REQUEST_GET_DESCRIPTOR,
             .value = DESCRIPTOR_TYPE_CONFIGURATION << 8,
             .index = 0,
             .lenght = sizeof(config)
-        }, &config);
-        if (config.iConfiguration) GetUSBStringIndex(USBDevices[i], &config_string, config.iConfiguration, default_code);
+        }, &config, false);
+        if (config.iConfiguration) usb_get_string(&usb_devices[i], &config_string, config.iConfiguration, default_code);
 
         printf("\n");
         printf("USB Descriptor parsed:\n");
@@ -870,16 +871,16 @@ static void cmd_show_usb_info(uint8_t color) {
                 printf("%c", manufacter.string[y]);
             printf("\n");
         }
-        printf("  USB Class code: 0x%x\n", USBDevices[i].data.device_descriptor.bDeviceclass);
-        printf("  USB SubClass code: 0x%x\n", USBDevices[i].data.device_descriptor.bSubdeviceclass);
-        printf("  USB Device Protocol: 0x%x\n", USBDevices[i].data.device_descriptor.bDeviceprotocol);
-        printf("  USB VendorID: %d\n", USBDevices[i].data.device_descriptor.idVendor);
-        printf("  USB ProductID: %d\n", USBDevices[i].data.device_descriptor.idProduct);
-        printf("  USB Possible configurations: %d\n", USBDevices[i].data.device_descriptor.bNumConfigurations);
-        printf("  USB Max packet size: %d\n", USBDevices[i].data.device_descriptor.bMaxpacketsize);
+        printf("  USB Class code: 0x%x\n", usb_devices[i].data.device_descriptor.bDeviceclass);
+        printf("  USB SubClass code: 0x%x\n", usb_devices[i].data.device_descriptor.bSubdeviceclass);
+        printf("  USB Device Protocol: 0x%x\n", usb_devices[i].data.device_descriptor.bDeviceprotocol);
+        printf("  USB VendorID: %d\n", usb_devices[i].data.device_descriptor.idVendor);
+        printf("  USB ProductID: %d\n", usb_devices[i].data.device_descriptor.idProduct);
+        printf("  USB Possible configurations: %d\n", usb_devices[i].data.device_descriptor.bNumConfigurations);
+        printf("  USB Max packet size: %d\n", usb_devices[i].data.device_descriptor.bMaxpacketsize);
         printf("  USB Supported langs: %d\n", (string.header.bLength - 2) / 2);
-        for (int y = 0; y < (string.header.bLength - 2) / sizeof(uint16_t); y++)
-            printf("    USB Supported lang: 0x%04x\n", ((uint16_t*)string.string)[y]);
+        for (int y = 0; y < (string.header.bLength - 2) / sizeof(u16); y++)
+            printf("    USB Supported lang: 0x%04x\n", ((u16*)string.string)[y]);
         printf("USB Configuration #0:\n");
         printf("  USB Configuration name: ");
         for (int y = 0; y < (config_string.header.bLength - 2) / 2; y++)
@@ -887,11 +888,11 @@ static void cmd_show_usb_info(uint8_t color) {
         printf("  USB Configuration interfaces num: %d\n", config.bNumInterfaces);
         printf("  USB Configuration max power: %dmA\n", config.bMaxPower / 2);
 
-        HIDKeyboardInit(&USBDevices[i]); // TODO: Add compatibility to other type of devices
+        hid_kbd_init(&usb_devices[i]); // TODO: Add compatibility to other type of devices
     }
 }
 
-static void cmd_showdrives(uint8_t color) {
+static void cmd_showdrives(u8 color) {
     printf("\n");
     for (int i = 0; i < 32; i++) {
         if (!drives[i].sector_size) continue;
@@ -901,7 +902,7 @@ static void cmd_showdrives(uint8_t color) {
     printf("Actual filesystem's drive: %s\n", fss[actual_fs]->drive->name);
 }
 
-static void cmd_mounts(uint8_t color) {
+static void cmd_mounts(u8 color) {
     printf("\n");
     for (int i = 0; i < 24; i++) {
         // if (!mounts[i]) continue;
@@ -909,7 +910,7 @@ static void cmd_mounts(uint8_t color) {
     }
 }
 
-static void cmd_cd(uint8_t color) {
+static void cmd_cd(u8 color) {
     printf("\n");
     unsigned char path[4069];
 
@@ -944,7 +945,7 @@ static const char* starts_with(const unsigned char* str, const char* prefix) {
     return (const char*)str;
 }
 
-void run_command(unsigned char *cmd_input, uint8_t color) {
+void run_command(unsigned char *cmd_input, u8 color) {
     const char* after_gk = starts_with(cmd_input, "gk ");
     if (after_gk) {
         while (*after_gk == ' ') after_gk++;

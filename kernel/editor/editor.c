@@ -5,8 +5,7 @@
 #include <drivers/ps2keyboard.h>
 #include <fs/fat32.h>
 #include <fs/fs.h>
-#include <stdint.h>
-#include <stddef.h>
+#include "sys/types.h"
 #include <stdbool.h>
 
 #define ED_W  VGA_TEXT_WIDTH
@@ -24,8 +23,8 @@ static int     ed_cur;
 static int     ed_view_row;
 static char    ed_filename[32];
 static bool    ed_dirty;
-static uint8_t ed_color_text;
-static uint8_t ed_color_status;
+static u8 ed_color_text;
+static u8 ed_color_status;
 
 static int ed_line_start(int n) {
     int pos = 0, line = 0;
@@ -62,7 +61,7 @@ static int ed_line_len(int n) {
     return len;
 }
 
-static void ed_fill_row(uint8_t row, uint8_t color) {
+static void ed_fill_row(u8 row, u8 color) {
     for (int c = 0; c < ED_W; c++)
         putentryat(' ', color, c, row);
 }
@@ -167,7 +166,7 @@ static void ed_save(struct drive_fs_t *fs) {
         return;
     }
     int r = fat32_write_file(fs, ed_filename,
-                             (const uint8_t *)ed_buf, (size_t)ed_len);
+                             (const u8 *)ed_buf, (size_t)ed_len);
     if (r == 0) ed_dirty = false;
     ed_draw_status();
     #endif
@@ -197,7 +196,7 @@ static void ed_load(struct drive_fs_t *fs) {
     if (found < 0) return;
 
     int offset = 0;
-    uint8_t tmp[128];
+    u8 tmp[128];
     int bytes;
     while (ed_len < EDITOR_MAX_FILESIZE - 1) {
         bytes = entries.entries[found].file.read(
@@ -217,7 +216,7 @@ static void ed_strcpy(char *dst, const char *src, int maxlen) {
     dst[i] = '\0';
 }
 
-void editor_run(struct drive_fs_t *fs, const char *filename, uint8_t color) {
+void editor_run(struct drive_fs_t *fs, const char *filename, u8 color) {
     ed_strcpy(ed_filename, filename, 32);
     ed_cur      = 0;
     ed_view_row = 0;

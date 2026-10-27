@@ -2,7 +2,7 @@
 #include "terminal/terminal.h"
 #include <boot/multiboot2.h>
 #include <drivers/framebuffer.h>
-#include <stdint.h>
+#include "sys/types.h"
 #include <terminal/printf.h>
 
 #define VGA_COLOR_BLACK     0
@@ -10,27 +10,27 @@
 
 #define MULTIBOOT1_BOOTLOADER_MAGIC 0x2BADB002
 
-uint64_t g_mbi_addr         = 0;
-uint64_t g_multiboot2_magic = 0;
+u64 g_mbi_addr         = 0;
+u64 g_multiboot2_magic = 0;
 
-uint64_t g_fb_addr;
-uint32_t g_fb_width;
-uint32_t g_fb_height;
-uint32_t g_fb_pitch;
-uint8_t  g_fb_bpp;
+u64 g_fb_addr;
+u32 g_fb_width;
+u32 g_fb_height;
+u32 g_fb_pitch;
+u8  g_fb_bpp;
 
-uint32_t memsize_grub; // mem_lower * mem_upper
+u32 memsize_grub; // mem_lower * mem_upper
 struct multiboot2_tag_acpi* acpi_info_grub = NULL;
-uint64_t max_addr_used     = 0; // To map physical memory
+u64 max_addr_used     = 0; // To map physical memory
 struct multiboot2_mmap_entry max_mem_used; // For the heap
 
 #ifdef DEBUG
     struct multiboot2_tag_bootloader_name* bootloader_info;
 #endif
 
-extern void _entry(uint64_t);
+extern void _entry(u64);
 
-void multiboot2_main(uint64_t magic, uint64_t mbi_addr)
+void multiboot2_main(u64 magic, u64 mbi_addr)
 {
     g_multiboot2_magic = magic;
     g_mbi_addr         = mbi_addr;
@@ -40,11 +40,11 @@ void multiboot2_main(uint64_t magic, uint64_t mbi_addr)
             // Maybe someone will add support to multiboot1, but for now this will be removed
 
     if (!valid) { // Not working (Dosen't print anything with the new way to print things)
-/*         volatile uint16_t *vga = (volatile uint16_t *)0xB8000;
+/*         volatile u16 *vga = (volatile u16 *)0xB8000;
         const char msg[] = "BAD MULTIBOOT MAGIC";
-        uint8_t attr = (VGA_COLOR_BLACK << 4) | VGA_COLOR_LIGHT_RED;
+        u8 attr = (VGA_COLOR_BLACK << 4) | VGA_COLOR_LIGHT_RED;
         for (int i = 0; msg[i]; i++) {
-            vga[i] = (uint16_t)((attr << 8) | (uint8_t)msg[i]);
+            vga[i] = (u16)((attr << 8) | (u8)msg[i]);
         } */
         // asm ("mov %%rax, %0" : "r"(0xBAD) : : "%rax");
         for (;;) { __asm__ volatile ("cli; hlt"); }
@@ -84,7 +84,7 @@ void multiboot2_main(uint64_t magic, uint64_t mbi_addr)
 
                     while ((uintptr_t)entry < (uintptr_t)tag + tag->size) {
                         if (entry->type == MULTIBOOT2_MEMORY_AVAILABLE) {
-                            // uint64_t region_end = entry->base_addr + entry->length;
+                            // u64 region_end = entry->base_addr + entry->length;
                             /* if (region_end > max_addr_used) {
                                 max_addr_used = region_end;
                                 max_mem_used = *entry;

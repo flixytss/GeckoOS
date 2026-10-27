@@ -1,7 +1,7 @@
 #pragma once
 #include <arch/x86_64/isr.h>
 #include <mem/paging.h>
-#include <stdint.h>
+#include "sys/types.h"
 
 typedef enum {
     INVALID,
@@ -20,24 +20,24 @@ typedef struct Thread {
     void       *stack;
     void       *stack_limit;
     void       *kernel_stack;
-    uint32_t    priority;
+    u32    priority;
     Proc_State  state;
-    uint64_t    pgm_buf;
-    uint64_t    pgm_size;
+    u64    pgm_buf;
+    u64    pgm_size;
     registers_t regs;
 } Thread;
 
 typedef struct Process {
-    uint32_t      id;
-    uint32_t      priority;
+    u32      id;
+    u32      priority;
     page_table_t *pml4;
     Proc_State    state;
     Thread        threads[5];
-    uint32_t      thread_count;
+    u32      thread_count;
 } Process;
 
-extern uint32_t        nr_processes;
+extern u32        nr_processes;
 
 static void    switch_task(void);
-uint32_t       create_process(void *entry_point, uint64_t entry_to, void *data_point, uint64_t data_to);
+u32       create_process(void *entry_point, u64 entry_to, void *data_point, u64 data_to);
 static void    execute_process(Process *proc);

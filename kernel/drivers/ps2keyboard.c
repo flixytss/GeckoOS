@@ -88,7 +88,7 @@ void ps2_kb_init()
 void keyboard_handler(registers_t *r)
 {
     // listen to the key port
-    uint8_t scancode = inb(PS2_DATA_PORT);
+    u8 scancode = inb(PS2_DATA_PORT);
 
     last_scancode = scancode;
     kb_ready      = 1;
