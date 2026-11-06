@@ -14,6 +14,10 @@
 #define VFS_CHARACTER_DEVICE    3 // a character file like /dev/null
 #define VFS_BLOCK_DEVICE        4 // a block device (just a drive as a file)
 
+// Open flags
+#define P_FILE_R 0x1
+#define P_FILE_W 0x2
+
 struct vfs_inode {
     u64 ino;
     u32 mode;
@@ -34,12 +38,26 @@ struct mount {
     struct vfs_filesystem* fs;
 };
 
+struct vfs_dir {
+    struct vfs_inode* inode;
+    struct vfs_inode* current;
+};
+struct vfs_entry {
+    char name[512];
+    int type;
+};
+
 struct vfs_inode_ops {
     int     (*lookup)(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer);
     size_t  (*read)(struct vfs_inode* inode, size_t, u8* buffer, size_t count);
     size_t  (*write)(struct vfs_inode* inode, size_t offset, const u8* buffer, size_t count);
     int     (*mkdir)(struct vfs_inode* inode, const char* name);
     int     (*delete)(struct vfs_inode* inode);
+    int     (*create)(struct vfs_inode* inode, const char* name);
+
+    int   (*opendir)(struct vfs_inode* inode, struct vfs_dir* dir);
+    int   (*readdir)(struct vfs_dir* dir, struct vfs_entry* entry);
+    int   (*closedir)(struct vfs_dir* dir);
 };
 
 struct vfs_filesystem {
@@ -50,8 +68,7 @@ struct vfs_filesystem {
 
 struct vfs_file {
     struct vfs_inode* inode;
-    char* name;
-    u32 offset;
+    u64 offset;
     u32 flags;
 };
 
@@ -60,8 +77,7 @@ struct dentry {
     char path[4096];
 };
 
-extern struct vfs_filesystem vfs_ramfs;
-
+struct vfs_inode* vfs_inode_find(struct vfs_filesystem* fs, u64 ino);
 struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, u64 ino);
 
 void vfs_add_fs(struct drive_fs_t* fs);
@@ -74,7 +90,12 @@ int vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buf
 int vfs_lookup_path(const char* path, struct vfs_inode** buffer);
 
 size_t vfs_read(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset);
-size_t vfs_write(struct vfs_inode* inode, u8* buffer, size_t count, size_t offset);
+size_t vfs_read_path(const char* path, u8* buffer, size_t count, size_t offset);
+int vfs_read_file(struct vfs_file* file, u8* buffer, size_t count);
+
+size_t vfs_write(struct vfs_inode* inode, const u8* buffer, size_t count, size_t offset);
+size_t vfs_write_path(const char* path, const u8* buffer, size_t count, size_t offset);
+int vfs_write_file(struct vfs_file* file, const u8* buffer, size_t count);
 
 void vfs_set_root_(struct vfs_filesystem* vfs);
 struct vfs_filesystem* get_vfs_(int index);
@@ -85,7 +106,13 @@ int vfs_umount(const char* name);
 int vfs_mkdir(struct vfs_inode* inode, const char* name);
 int vfs_mkdir_path(const char* path);
 
-struct vfs_file* vfs_open(const char* path, u32 flags);
+struct vfs_file* vfs_open_path(const char* path, u32 flags);
+struct vfs_file* vfs_open(struct vfs_inode* inode, u32 flags);
+
+void vfs_close(struct vfs_file* file);
+
+int vfs_create(struct vfs_inode* inode, const char* name);
+int vfs_create_path(const char* path);
 
 // VFS Options
 extern struct vfs_inode_ops* vfs_ops[4];

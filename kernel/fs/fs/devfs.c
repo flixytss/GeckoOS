@@ -3,7 +3,7 @@
 #include "sys/errno.h"
 #include <stddef.h>
 #include "sys/types.h"
-#include "fs/devfs.h"
+#include "fs/types/devfs.h"
 #include <terminal/printf.h>
 
 struct vfs_filesystem* create_devfs() {
@@ -13,7 +13,7 @@ struct vfs_filesystem* create_devfs() {
     strcpy(devfs->name, "devfs");
 
     struct devfs_node* root = kmalloc(sizeof(struct devfs_node));
-    memset(root, 0, sizeof(*root));
+    memset(root, 0, sizeof(struct devfs_node));
 
     root->inode = vfs_inode_create(devfs, (u64)root);
 
@@ -31,11 +31,23 @@ struct vfs_filesystem* create_devfs() {
 
 // Vfs ops
 size_t devfs_vfs_read(struct vfs_inode* inode, size_t offset, u8* buffer, size_t len) {
-    return ((struct devfs_node*)inode->reserved)->device->read(inode->reserved, buffer, len);
+    struct devfs_node* node = (struct devfs_node*)inode->reserved;
+    if (!node->device) {
+        if (!node->data) return -ENODEV;
+        memcpy(buffer, node->data + offset, len);
+        // TODO: Fix this
+    }
+    return node->device->read(inode->reserved, buffer, len);
 }
 size_t devfs_vfs_write(struct vfs_inode* inode, size_t offset, const u8* buffer, size_t len) {
-    return ((struct devfs_node*)inode->reserved)->device->write(inode->reserved, buffer, len);
+    struct devfs_node* node = (struct devfs_node*)inode->reserved;
+    if (!node->device) {
+        if (!node->data) return -ENODEV;
+        // TODO: Complete this
+    }
+    return node->device->write(inode->reserved, buffer, len);
 }
+
 int devfs_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer) {
     struct devfs_node* node = (struct devfs_node*)inode->reserved;
     if (!node) return -ENOENT;
@@ -74,15 +86,14 @@ int devfs_vfs_mkdir(struct vfs_inode* inode, const char* name) {
     memset(ramfs_n, 0, sizeof(struct devfs_node));
 
     ramfs_n->inode = in;
+    ramfs_n->name = strdup(name);
+
     in->fs = inode->fs;
     in->mode = VFS_DIR;
     in->ops = vfs_ops[VFS_OPS_DEVFS];
     in->reserved = ramfs_n;
 
-    ramfs_n->name = strdup(name);
     ramfs_n->next = node->childrens;
-    // ramfs_n->childrens = NULL;
-
     node->childrens = ramfs_n;
 
     return 0;
@@ -98,6 +109,31 @@ int devfs_vfs_delete(struct vfs_inode* inode) {
     }
 
     kfree(inode);
+
+    return 0;
+}
+
+int devfs_vfs_create(struct vfs_inode* inode, const char* name) {
+    struct devfs_node* node = ((struct devfs_node*)inode->reserved);
+
+    struct devfs_node* ramfs_n = kmalloc(sizeof(struct devfs_node));
+    struct vfs_inode* in = kmalloc(sizeof(struct vfs_inode));
+
+    if (!in || !ramfs_n) return -ENOMEM;
+
+    memset(in, 0, sizeof(struct vfs_inode));
+    memset(ramfs_n, 0, sizeof(struct devfs_node));
+
+    ramfs_n->inode = in;
+    ramfs_n->name = strdup(name);
+
+    in->fs = inode->fs;
+    in->mode = VFS_FILE;
+    in->ops = vfs_ops[VFS_OPS_DEVFS];
+    in->reserved = ramfs_n;
+
+    ramfs_n->next = node->childrens;
+    node->childrens = ramfs_n;
 
     return 0;
 }

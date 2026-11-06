@@ -12,9 +12,13 @@ A collaborative OS project where contributors build a custom operating system fr
 - **Kernel** — Full kernel implementation with:
   - VGA text mode driver
   - AT keyboard driver with multiple layouts
-  - ATA disk driver (primary IDE, master + slave)
-  - Programmable timer
-  - Interrupt handling (IDT, ISR, IRQ)
+  - PS2 keyboard / mouse (I/O)
+  - PIT timer
+  - Lapic timer
+  - E1000 driver (internet)
+  - PCI driver (external devices)
+  - IDE driver (hard drives)
+  - ACPI support (there is no AML support)
 - **Memory Management**
   - Physical memory management
   - Virtual memory with paging
@@ -23,6 +27,7 @@ A collaborative OS project where contributors build a custom operating system fr
 - **Shell** — Interactive command-line shell with file system commands
 - **Text Editor** — Built-in terminal editor
 - **Custom Language** — GK interpreted scripting language
+- **VFS** — An early version of a VFS
 
 ---
 
@@ -49,7 +54,7 @@ sudo apt install clang nasm binutils grub-common xorriso qemu-system-x86 mtools 
 
 ### Build and run
 
-Note: The DEBUG mode is activated by default
+Note: The DEBUG mode is activated by default in the "test" branch
 
 **Step 1 — Create the FAT32 data disk:**
 ```bash
@@ -97,7 +102,6 @@ You need to run these commands with no arguments!
 | `mkdir` | Create a directory entry |
 | `write` | Append text to a file |
 | `cat` | Print file contents |
-| `edit` | Open the built-in text editor |
 
 ## How to Contribute
 

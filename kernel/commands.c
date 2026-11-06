@@ -13,14 +13,13 @@
 #include <colors.h>
 #include <drivers/ps2keyboard.h>
 #include <drivers/serial.h>
-// #include <elf.h>
 #include <layouts/kb_layouts.h>
 #include <terminal/terminal.h>
 #include <gk/gk.h>
 #include <mem.h>
 #include <drivers/ata.h>
 #include <fs/fs.h>
-#include <fs/fat32.h>
+#include <fs/types/fat32.h>
 #include "sys/types.h"
 #include <drivers/pci.h>
 #include <stdbool.h>
@@ -302,50 +301,34 @@ static void cmd_ls(u8 color) {
 }
 
 static void cmd_cat(u8 color) {
-    #if 0
-    struct fs_entries_t entries;
-    unsigned char fname[32];
-    int i, found;
+    u8 path[PATH_MAX];
 
-    if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
-
-    printc("\nEnter filename: ", color);
-    input(fname, 32, color);
+    printc("\nEnter path: ", color);
+    input(path, PATH_MAX, color);
     printc("\n", color);
 
-    entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
-    found = -1;
-    for (i = 0; i < (int)entries.count; i++) {
-        if (entries.entries[i].type != ENTRY_FILE) continue;
-        const char *a = entries.entries[i].file.name;
-        const unsigned char *b = fname;
-        int match = 1;
-        while (*a && *b) {
-            char ca = (*a >= 'a' && *a <= 'z') ? *a - 32 : *a;
-            char cb = (*b >= 'a' && *b <= 'z') ? *b - 32 : *b;
-            if (ca != cb) { match = 0; break; }
-            a++; b++;
-        }
-        if (match && *a == '\0' && *b == '\0') { found = i; break; }
+    int ret;
+    
+    struct vfs_inode* inode;
+    if ((ret = vfs_lookup_path(path, &inode)) != 0) {
+        perror(ret);
+        printf("\n");
+        return;
     }
-
-    if (found < 0) {
-        printc("File not found: ", VGA_COLOR_RED);
-        printc((char*)fname, VGA_COLOR_RED);
-        printc("\n", color);
+    if (inode->mode == VFS_DIR) {
+        perror(EISDIR);
+        printf("\n");
         return;
     }
 
-    u8 readbuf[128];
-    int bytes, j = 0;
-    while ((bytes = entries.entries[found].file.read(
-            (void*)&entries.entries[found].file, j * 128, 128, readbuf)) > 0) {
-        j++;
-        for (int k = 0; k < bytes; k++)
-            putchar(readbuf[k], color);
-    }
-    printc("\n", color);
-    #endif
+    /*
+        If the file is too big, it cannot be printed
+        That is a design issue
+    */
+    u8* bytes = kmalloc(inode->size);
+    printf("%d\n", vfs_read(inode, bytes, 4096, 0));
+
+    printf("%s\n", bytes);
 }
 
 static void cmd_fsinfo(u8 color) {
@@ -358,26 +341,14 @@ static void cmd_fsinfo(u8 color) {
 }
 
 static void cmd_touch(u8 color) {
-    unsigned char fname[32];
-    unsigned char content[256];
+    u8 path[PATH_MAX];
 
-    if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
+    printc("\nPath: ", color);
+    input(path, 32, color);
+    
+    vfs_create_path(path);
 
-    printc("\nFilename: ", color);
-    input(fname, 32, color);
-    printc("\nContent (single line): ", color);
-    input(content, 255, color);
-    printc("\n", color);
-
-    int result = fat32_create_file(fss[actual_fs], (char*)fname,
-                                   (const u8*)content, strlen((char*)content));
-    if (result == 0) {
-        printc("File created: ", color);
-        printc((char*)fname, color);
-        printc("\n", color);
-    } else {
-        printc("Failed to create file (disk full or root dir full?)\n", VGA_COLOR_RED);
-    }
+    printf("\n");
 }
 
 static void cmd_rm(u8 color) {
@@ -408,58 +379,46 @@ static void cmd_rm(u8 color) {
 }
 
 static void cmd_cp(u8 color) {
-    #if 0
-    unsigned char src[32], dst[32];
-    if (!fs[actual_fs]) { printf("Not mounted\n"); return; }
+    u64 transferred;
+    u32 size;
+    u8 src[PATH_MAX], dst[PATH_MAX];
+    u8 chunk[1024];
+    struct vfs_inode* src_inode,* dst_inode;
+    struct vfs_file* src_file,* dst_file;
+    int trips;
+    int ret;
+    int i;
 
-    printc("\nSource filename: ", color);
-    input(src, 32, color);
-    printc("\nDestination filename: ", color);
-    input(dst, 32, color);
+    printc("\nSource path: ", color);
+    input(src, PATH_MAX, color);
+    printc("\nDestination path: ", color);
+    input(dst, PATH_MAX, color);
     printc("\n", color);
 
-    struct fs_entries_t entries = fs[actual_fs]->root_dir.get_entries(&fs[actual_fs]->root_dir);
-    int found = -1;
-    for (int i = 0; i < (int)entries.count; i++) {
-        if (entries.entries[i].type != ENTRY_FILE) continue;
-        const char *a = entries.entries[i].file.name;
-        const unsigned char *b = src;
-        int match = 1;
-        while (*a && *b) {
-            char ca = (*a >= 'a' && *a <= 'z') ? *a - 32 : *a;
-            char cb = (*b >= 'a' && *b <= 'z') ? *b - 32 : *b;
-            if (ca != cb) { match = 0; break; }
-            a++; b++;
-        }
-        if (match && *a == '\0' && *b == '\0') { found = i; break; }
-    }
-
-    if (found < 0) {
-        printc("Source not found.\n", VGA_COLOR_RED);
+    if ((ret = vfs_lookup_path(src, &src_inode)) != 0) {
+        perror(ret);
         return;
     }
+    ret = vfs_lookup_path(dst, &dst_inode);
 
-    static u8 copybuf[4096];
-    int total = 0, chunk, j = 0;
-    while (total < 4096) {
-        u8 tmp[128];
-        chunk = entries.entries[found].file.read(
-            (void*)&entries.entries[found].file, j * 128, 128, tmp);
-        if (chunk <= 0) break;
-        for (int k = 0; k < chunk && total < 4096; k++)
-            copybuf[total++] = tmp[k];
-        j++;
+    src_file = vfs_open(src_inode, P_FILE_R);
+    if (ret == -ENOENT)
+        vfs_create_path(dst); // create file if it dosen't exists
+    dst_file = vfs_open(dst_inode, P_FILE_W);
+
+    transferred = 0;
+    trips = (src_inode->size / 1024) + 1;
+
+    for (i = 1; i <= trips; i++) {
+        size = i == trips ? src_inode->size - transferred : 1024;
+        transferred += size;
+
+        vfs_read_file(src_file, chunk, size);
+        vfs_write_file(dst_file, chunk, size);
     }
 
-    int result = fat32_create_file(fs[actual_fs], (char*)dst, copybuf, total);
-    if (result == 0) {
-        printc("Copied to: ", color);
-        printc((char*)dst, color);
-        printc("\n", color);
-    } else {
-        printc("Copy failed.\n", VGA_COLOR_RED);
-    }
-    #endif
+    vfs_close(src_file);
+    vfs_close(dst_file);
 }
 
 static void cmd_mv(u8 color) {

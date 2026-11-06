@@ -60,7 +60,10 @@
 
 
     static inline void perror(int errno) {
-        if (serrnos[-errno]) printf("%s\n", serrnos[-errno]);
+        if (errno < 0)
+            errno = -errno;
+
+        if (serrnos[errno]) printf("%s\n", serrnos[errno]);
     }
 #endif
 

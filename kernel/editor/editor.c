@@ -3,7 +3,7 @@
 #include <terminal/terminal.h>
 #include <drivers/vga.h>
 #include <drivers/ps2keyboard.h>
-#include <fs/fat32.h>
+#include <fs/types/fat32.h>
 #include <fs/fs.h>
 #include "sys/types.h"
 #include <stdbool.h>

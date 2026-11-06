@@ -4,6 +4,7 @@
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
+#include "fs/types/fat32.h"
 #include "mem.h"
 #include "terminal/printf.h"
 #include <colors.h>
@@ -26,8 +27,9 @@
 #include <fs/fs.h>
 #include <drivers/hid/keyboard.h>
 #include <fs/vfs.h>
-#include <fs/devfs.h>
+#include <fs/types/devfs.h>
 #include <sys/errno.h>
+#include "sys/math.h"
 
 #define GECKO_VERSION "26.02"
 
@@ -138,11 +140,27 @@ void kmain() {
     // Set the first virtual filesystem as the root one
     vfs_set_root_(get_vfs_(0));
 
-    struct vfs_inode* buffer = NULL;
+    // Create /dev in the main filesystem and mount devfs there
     vfs_mkdir_path("/dev");
     vfs_mount("/dev", get_vfs_(1));
 
-    vfs_open("/dev/file", 0x1);
+    vfs_create_path("/file");
+
+    #if 1
+
+    char buffer[4096] = "Hello and more...";
+    memset(buffer, 'G', sizeof(buffer));
+
+    vfs_write_path("/file", buffer, 4096, 0);
+    vfs_write_path("/file", "Hello", 5, 10);
+
+    struct vfs_file* file = vfs_open_path("/file", 0x1);
+
+    vfs_close(file);
+
+    // I fucking hate fat32
+
+    #endif
     
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "fs/vfs.h"
+#include "sys/types.h"
 
 struct devfs_node {
     struct vfs_inode* inode;
@@ -11,6 +12,8 @@ struct devfs_node {
     struct devfs_node* childrens; // this is a linked list with next
     struct devfs_node* next;
     // struct ramfs_node* last;
+
+    u8* data;
 };
 
 struct device {
@@ -28,6 +31,7 @@ size_t devfs_vfs_read(struct vfs_inode* inode, size_t offset, u8* buffer, size_t
 size_t devfs_vfs_write(struct vfs_inode* inode, size_t offset, const u8* content, size_t len);
 int devfs_vfs_lookup(struct vfs_inode* inode, const char* path, struct vfs_inode** buffer);
 int devfs_vfs_mkdir(struct vfs_inode* inode, const char* path);
+int devfs_vfs_create(struct vfs_inode* inode, const char* name);
 
 #ifdef DEBUG
     void devfs_vfs_print_node_childrens(struct vfs_inode* inode);

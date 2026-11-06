@@ -59,7 +59,7 @@ Elffile:
 	$(MAKE) -C Assets/Elf\ for\ testing
 	mv Assets/Elf\ for\ testing/Elf .
 
-run-fat32: gecko.iso # fat32.img # I dont want to make a new .img
+run-fat32: gecko.iso fat32.img # I dont want to make a new .img
 	qemu-system-x86_64 \
 	  -cdrom gecko.iso \
 	  -drive format=raw,file=fat32.img \

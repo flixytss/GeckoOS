@@ -4,7 +4,7 @@
 #include "terminal/terminal.h"
 #include "terminal/printf.h"
 #include "sys/errno.h"
-#include <fs/fat32.h>
+#include <fs/types/fat32.h>
 #include <fs/fs.h>
 #include "sys/limits.h"
 #include "sys/types.h"
