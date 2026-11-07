@@ -1,10 +1,9 @@
 #include "fs/vfs.h"
-#include "mem.h"
+#include "mem/mmu.h"
+#include "sys/std.h"
 #include "sys/errno.h"
-#include <stddef.h>
 #include "sys/types.h"
 #include "fs/types/devfs.h"
-#include <terminal/printf.h>
 
 struct vfs_filesystem* create_devfs() {
     struct vfs_filesystem* devfs = kmalloc(sizeof(struct vfs_filesystem));

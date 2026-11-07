@@ -11,6 +11,16 @@
 
 // damn like fr
 
+/*
+    Just a lot of useless code that will get deleted when i finish
+    the uhci driver completely
+
+    i will take this file just copy stuff that i dont want
+    to rewrite again
+*/
+
+#if 0
+
 #include <drivers/interfaces/uhci.h>
 #include "drivers/hid/keyboard.h"
 #include "drivers/pci.h"
@@ -526,3 +536,4 @@ int uhci_pci_driver_init(struct pci_dev* dev) {
 
     return 0;
 }
+#endif

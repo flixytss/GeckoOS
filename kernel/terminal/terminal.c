@@ -3,7 +3,6 @@
 #include <drivers/ps2keyboard.h>
 #include <drivers/ps2mouse.h>
 #include <gk/gk.h>
-#include <mem.h>
 #include "sys/types.h"
 #include <terminal/terminal.h>
 #include <drivers/input.h>

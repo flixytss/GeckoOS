@@ -134,7 +134,8 @@ Add your name to the contributors list when you contribute!
 - Email: elroylilly@gmail.com
 - [Mastodon](https://mastodon.social/@GeckoOS)
 - Join the community:
-  - [Matrix](https://matrix.to/#/#geckoos-official:matrix.org) ← Join this
+  - [Matrix](https://matrix.to/#/#geckoos-official:matrix.org)
+  - [Discord] (https://discord.gg/T5RS8EBV58) ← Join this
 
 ---
 
@@ -149,7 +150,7 @@ Add your name to the contributors list when you contribute!
 - Sifi11 (Founder)
 - Crim (OG)
 - CheeseFunnel23
-- bonk enjoyer/dorito girl (Bootloader Creator)
+- bonk enjoyer/dorito girl
 - KaleidoscopeOld5841
 - billythemoon (V1 Website creator)
 - TheGirl790 (OG)

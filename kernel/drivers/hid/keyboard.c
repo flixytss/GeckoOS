@@ -4,10 +4,10 @@
 #include "drivers/ps2keyboard.h"
 #include "drivers/usb.h"
 #include "layouts/kb_layouts.h"
-#include "mem.h"
+#include "mem/mmu.h"
+#include "sys/std.h"
 #include "sys/errno.h"
 #include <drivers/interfaces/uhci.h>
-#include "sys/types.h"
 #include <terminal/printf.h>
 #include <drivers/pit.h>
 

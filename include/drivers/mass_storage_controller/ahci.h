@@ -159,4 +159,4 @@ typedef struct tagFIS_DMA_SETUP {
     u32 resvd;          //Reserved
 } FIS_DMA_SETUP;
 
-void ahci_init(struct pci_device_shortcut device);
+void ahci_init(struct pci_dev* device);

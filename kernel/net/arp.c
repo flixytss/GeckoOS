@@ -1,7 +1,7 @@
 #include <net/arp.h>
 #include <net/net.h>
 #include <net/ethernet.h>
-#include <mem.h>
+#include <sys/std.h>
 
 #define ARP_CACHE_SIZE 16
 

@@ -1,6 +1,6 @@
-#include "fs/fs.h"
 #include <drivers/drives.h>
-#include <mem.h>
+#include <mem/mmu.h>
+#include <sys/std.h>
 #include <drivers/ata.h>
 #include <terminal/terminal.h>
 #include <terminal/printf.h>

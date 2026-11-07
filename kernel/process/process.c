@@ -1,7 +1,8 @@
 #include <process/process.h>
 #include <fs/fs.h>
 #include <gk/gk.h>
-#include <mem.h>
+#include <mem/mmu.h>
+#include <sys/std.h>
 #include <mem/physical_mem.h>
 #include <mem/paging.h>
 #include <ports.h>

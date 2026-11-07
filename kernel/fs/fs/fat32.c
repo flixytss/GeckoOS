@@ -7,7 +7,8 @@
 #include <fs/types/fat32.h>
 #include <drivers/ata.h>
 #include <limits.h>
-#include <mem.h>
+#include <mem/mmu.h>
+#include <sys/std.h>
 #include <stddef.h>
 #include <terminal/terminal.h>
 #include <terminal/printf.h>

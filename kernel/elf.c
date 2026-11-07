@@ -1,10 +1,9 @@
-#include "mem.h"
+#include "mem/mmu.h"
 #include "process/process.h"
-#include <stdbool.h>
 #include "elf.h"
-#include <commands.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
+#include "sys/std.h"
 
 bool is_elf_valid(Elf64_Ehdr* hdr) {
     if (!hdr) return false;

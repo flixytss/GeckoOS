@@ -5,9 +5,9 @@
 #include <drivers/vga.h>
 #include "sys/types.h"
 
-extern const u8 BG_COLOR;
-extern const u8 TERM_COLOR;
-extern const u8 PROMPT_COLOR;
-extern const u8 BOLD_COLOR;
+static const u8 BG_COLOR = VGA_COLOR_BLACK;
+static const u8 TERM_COLOR = VGA_COLOR_WHITE | BG_COLOR << 4;
+static const u8 PROMPT_COLOR = VGA_COLOR_LIGHT_GREEN | BG_COLOR << 4;
+static const u8 BOLD_COLOR = VGA_COLOR_LIGHT_GREY | BG_COLOR << 4;
 
 #endif

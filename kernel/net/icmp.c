@@ -1,7 +1,7 @@
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/net.h>
-#include <mem.h>
+#include <sys/std.h>
 #include "terminal/printf.h"
 
 static volatile int reply_received = 0;

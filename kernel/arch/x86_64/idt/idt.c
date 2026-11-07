@@ -1,6 +1,6 @@
 #include <colors.h>
 #include <arch/x86_64/idt.h>
-#include <mem.h>
+#include <sys/std.h>
 #include <ports.h>
 #include <terminal/terminal.h>
 #include <arch/x86_64/irq.h>

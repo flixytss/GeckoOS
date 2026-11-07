@@ -1,6 +1,8 @@
 #include "fs/vfs.h"
 #include "fs/types/fat32.h"
 #include "sys/errno.h"
+#include "sys/std.h"
+#include "mem/mmu.h"
 
 size_t fat32_vfs_write_file(struct vfs_inode* inode, size_t offset, const u8 *content, size_t len)
     { return fat32_write_file(inode->reserved, offset, content, len); }

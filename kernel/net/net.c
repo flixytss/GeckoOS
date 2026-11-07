@@ -3,7 +3,7 @@
 #include <net/arp.h>
 #include <net/ip.h>
 #include <drivers/e1000.h>
-#include <mem.h>
+#include <sys/std.h>
 
 u32 net_ip;
 u32 net_gateway;

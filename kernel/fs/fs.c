@@ -1,11 +1,12 @@
 #include "drivers/vga.h"
 #include "fs/vfs.h"
-#include "mem.h"
+#include "mem/mmu.h"
+#include "sys/std.h"
 #include "terminal/terminal.h"
 #include "terminal/printf.h"
 #include "sys/errno.h"
-#include <fs/types/fat32.h>
-#include <fs/fs.h>
+#include "fs/types/fat32.h"
+#include "fs/fs.h"
 #include "sys/limits.h"
 #include "sys/types.h"
 

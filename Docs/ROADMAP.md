@@ -29,7 +29,6 @@ PS/2 is legacy on any hardware made in the last decade. USB HID is the most impo
 
 VGA text mode is old and doesn't work on modern hardware. A framebuffer allows for real graphics.
 
-- [ ] **GOP framebuffer** — replace the VGA text mode driver with a UEFI GOP pixel framebuffer
 - [ ] **Improved shell** — add proper argument parsing, and tab completion
 - [ ] **TCP stack** — implement TCP on top of the existing IP layer; opens up HTTP, SSH, and real internet protocols
 - [ ] **HTTP client** — basic HTTP GET over TCP; VERY DIFFICULT
@@ -70,4 +69,4 @@ I didn't know what to label them but they are needed.
 ## Not Planned
 
 - ARM / Raspberry Pi port
-- Custom Bootloader
+- Custom Bootloader (Maybe - Pumpkicks :))

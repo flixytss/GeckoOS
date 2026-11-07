@@ -1,14 +1,14 @@
 #include "arch/x86_64/isr.h"
-#include "drivers/vga.h"
-#include "terminal/terminal.h"
-#include "drivers/framebuffer.h"
+#include "ports.h"
 #include "terminal/printf.h"
+#include "drivers/framebuffer.h"
 #include "sys/types.h"
 #include <stdbool.h>
 #include <stddef.h>
-#include <mem.h>
+#include <sys/std.h>
 #include <mem/physical_mem.h>
 #include <mem/paging.h>
+#include <mem/mmu.h>
 
 static page_table_t *current_pml4 = NULL;
 
@@ -66,7 +66,7 @@ page_table_t *vmm_get_pml4(void)
 
 bool vmm_set_pml4(page_table_t *pml4)
 {
-    assert(pml4 != NULL);
+    if (!pml4) return false;
     current_pml4 = pml4;
     asm volatile("mov %0, %%cr3" : : "r"((u64)pml4) : "memory");
     return true;
@@ -180,12 +180,11 @@ void page_fault(registers_t* regs) {
     int id = regs->err_code & 0x10;          // Caused by an instruction fetch?
     ((void)id);
 
-    print("Page fault! ( ");
-    if (present) {print("present ");}
-    if (rw) {print("read-only ");}
-    if (us) {print("user-mode ");}
-    if (reserved) {print("reserved ");}
-    print(") at ");
-    printf("0x%p\nHalting...", faulting_address);
-    for (;;) asm("hlt");
+    printf("Page fault! ( ");
+    if (present) {printf("present ");}
+    if (rw) {printf("read-only ");}
+    if (us) {printf("user-mode ");}
+    if (reserved) {printf("reserved ");}
+    printf(") at 0x%p\nHalting...", faulting_address);
+    for (;;) HALT();
 } 

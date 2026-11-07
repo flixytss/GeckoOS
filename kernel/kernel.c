@@ -4,8 +4,7 @@
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
-#include "fs/types/fat32.h"
-#include "mem.h"
+#include "mem/mmu.h"
 #include "terminal/printf.h"
 #include <colors.h>
 #include <commands.h>
@@ -29,9 +28,8 @@
 #include <fs/vfs.h>
 #include <fs/types/devfs.h>
 #include <sys/errno.h>
-#include "sys/math.h"
 
-#define GECKO_VERSION "26.02"
+#define GECKO_VERSION "26.03"
 
 void process_input(unsigned char *buffer) {
     run_command(buffer, TERM_COLOR);
@@ -126,6 +124,7 @@ void kmain() {
     int i;
     for (i = 0; i < (sizeof(drives) / sizeof(drives[0])); i++) {
         if (!drives[i].sector_size) continue;
+        for(;;);
         fsmount(i);
     }
     // dump_heap();
@@ -145,22 +144,6 @@ void kmain() {
     vfs_mount("/dev", get_vfs_(1));
 
     vfs_create_path("/file");
-
-    #if 1
-
-    char buffer[4096] = "Hello and more...";
-    memset(buffer, 'G', sizeof(buffer));
-
-    vfs_write_path("/file", buffer, 4096, 0);
-    vfs_write_path("/file", "Hello", 5, 10);
-
-    struct vfs_file* file = vfs_open_path("/file", 0x1);
-
-    vfs_close(file);
-
-    // I fucking hate fat32
-
-    #endif
     
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

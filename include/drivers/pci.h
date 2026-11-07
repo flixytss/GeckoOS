@@ -189,6 +189,9 @@ void pci_detect_controllers();
 
 const char *nic_vendor_str(u16 vendor);
 
-u32 pci_get_bar(u32 bus, u32 slot, u32 func, u8 index);
+u32 pci_get_bar(struct pci_dev* dev, u8 index);
+
+void pci_dev_disable_bios(struct pci_dev* dev);
+void pci_dev_enable_busmastering(struct pci_dev* dev);
 
 #endif

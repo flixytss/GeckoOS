@@ -4,12 +4,11 @@
 #include "drivers/usb/host/uhci-hcd.h"
 #include <drivers/pci.h>
 #include <drivers/e1000.h>
-#include <mem.h>
+#include <mem/mmu.h>
 #include <ports.h>
 #include <stddef.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
-#include "drivers/pci_hcd.h"
 
 #define PCI_CFG_ADDR 0xCF8
 #define PCI_CFG_DATA 0xCFC
@@ -52,6 +51,14 @@ void pci_writeb(u32 bus, u32 slot, u32 func, u32 off, u8 data) {
     u8  shift = (off & 3) * 8;
     pci_writel(bus, slot, func, align, (o & ~(0xff << shift)) | ((u32)data << shift));
 }
+
+#define PARAMETERS(dev) dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn)
+void pci_dev_disable_bios(struct pci_dev* dev)
+    { pci_writew(PARAMETERS(dev), 0xC0, 0x2000); }
+void pci_dev_enable_busmastering(struct pci_dev* dev)
+    { pci_writew(PARAMETERS(dev), 0x4, 0x5); }
+u32 pci_get_bar(struct pci_dev* dev, u8 index)
+    { return pci_readl(PARAMETERS(dev), BAR0_OFF + (BAR_SIZE * index)); }
 
 #define PCI_CLASSES_NUM 120
 const char* pci_classes[PCI_CLASSES_NUM] = {
@@ -251,14 +258,6 @@ static void walk_buses(struct pci_bus *start, void (*cb)(struct pci_dev *)) {
     }
 }
 
-// Helpers
-u32 PciRead(struct pci_device_shortcut device, u8 off) { // A wrapper for pci_readl
-    return pci_readl(device.bus, device.slot, device.func, off);
-}
-void PciWrite(struct pci_device_shortcut device, u8 off, u32 data) { // A wrapper for pci_writel
-    pci_writel(device.bus, device.slot, device.func, off, data);
-}
-
 static void lspci_cb(struct pci_dev *dev) {
     #ifdef DEBUG
         u8 subclass = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.subclass));
@@ -301,12 +300,14 @@ static void pci_filter(struct pci_dev *dev) {
     u8 subclass = pci_readb(bus, slot, fn,
                             offsetof(struct pci_hdr, common.subclass));
     u8 progif = pci_readb(bus, slot, fn, offsetof(struct pci_hdr, common.prog_if));
+    const char *vendor;
+    const char *model;
 
     switch (dev->class & 0xFF) {
         case PCI_CLASS_NETWORK:
             #ifdef DEBUG
-                const char *vendor = nic_vendor_str(dev->vendor);
-                const char *model  = nic_model_str(dev->vendor, dev->device);
+                vendor = nic_vendor_str(dev->vendor);
+                model  = nic_model_str(dev->vendor, dev->device);
 
                 if (vendor && model)
                     printf("  [%02x:%02x.%d] %s %s\n", bus, slot, fn, vendor, model);
@@ -321,8 +322,7 @@ static void pci_filter(struct pci_dev *dev) {
                 e1000_init(bus, slot, fn);
             break;
         case PCI_CLASS_SBC:
-            if (subclass != 0x3) break; // Support only for USB controllers
-            // dev->irq = pci_readb(bus, slot, fn, offsetof(struct pci_hdr, common.prog_if));
+            if (subclass != 0x3) break;
 
             pci_dev_disable_bios(dev);
             pci_dev_enable_busmastering(dev);
@@ -333,22 +333,9 @@ static void pci_filter(struct pci_dev *dev) {
                         printf("  [%02x:%02x.%d] UHCI Controller\n",
                             bus, slot, fn);
                     #endif
-                    uhci_start(uhci_create(dev));
+                    uhci_start(uhci_create(dev)); // There isn't a working driver for uhci right now
                     printf("\n");
                     break;
-                case 0x10: // OHCI
-                    #ifdef DEBUG
-                        printf("  [%02x:%02x.%d] OHCI Controller\n",
-                            bus, slot, fn);
-                    #endif
-                    break;
-                case 0x20: // EHCI
-                    #ifdef DEBUG
-                        printf("  [%02x:%02x.%d] EHCI Controller\n",
-                            bus, slot, fn);
-                    #endif
-                    break;
-                default: break;
             } break;
         case 0x01: // Mass storage controller
             if (subclass == 0x06) {
@@ -356,7 +343,7 @@ static void pci_filter(struct pci_dev *dev) {
                     printf("  [%02x:%02x.%d] AHCI Controller\n",
                         bus, slot, fn);
                 #endif
-                ahci_init((struct pci_device_shortcut){bus, slot, fn});
+                ahci_init(dev); // This is also in... lets say development
             } else if (subclass == 0x01) {
                 #ifdef DEBUG
                     printf("  [%02x:%02x.%d] IDE Controller\n",
@@ -374,8 +361,4 @@ void pci_detect_controllers() {
         printf("Available controllers:\n");
     #endif
     walk_buses(&pci_root_bus, pci_filter);
-}
-
-u32 pci_get_bar(u32 bus, u32 slot, u32 func, u8 index) {
-    return pci_readl(bus, slot, func, BAR0_OFF + (BAR_SIZE * index));
 }

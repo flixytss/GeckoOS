@@ -2,7 +2,8 @@
 #include "fs/types/fat32_vfs.h"
 #include "fs/types/devfs.h"
 #include "fs/fs.h"
-#include "mem.h"
+#include "mem/mmu.h"
+#include "sys/std.h"
 #include "sys/types.h"
 #include <terminal/printf.h>
 #include "sys/errno.h"

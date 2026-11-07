@@ -1,6 +1,6 @@
 #include <drivers/framebuffer.h>
 #include <fonts/font8x16.h>
-#include <mem.h>
+#include <sys/std.h>
 #include "sys/types.h"
 
 u64 fb_base_addr;

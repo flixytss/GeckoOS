@@ -1,20 +1,25 @@
 /*
+    License Identifier: GPL-3.0
+
+    (C) Copyright 2026 Pumpkicks
+*/
+
+/*
     i will remake all the files that are related to usb, i will make this file
-   based of what i understood of the linux uhci-hcd.c file. some GPL3-0 licence
-   and 2026 by Pumpkicks
+    based of what i understood of the linux uhci-hcd.c file. some GPL3-0 licence
+    and 2026 by Pumpkicks
 */
 
 #include "drivers/usb/host/uhci-hcd.h"
 #include "drivers/interfaces/uhci.h"
 #include "drivers/pci.h"
 #include "drivers/pit.h"
-#include "mem.h"
+#include "mem/mmu.h"
+#include "sys/std.h"
 #include "ports.h"
 #include "sys/types.h"
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
-
-#define uhci_
 
 static u8 uhci_readb(const struct uhci_hcd *hcd, u16 offset) {
     return inb(hcd->io_port + offset);
@@ -116,9 +121,8 @@ struct uhci_hcd* uhci_create(struct pci_dev* dev) {
     struct uhci_hcd* hcd = memset(kmalloc(sizeof(struct uhci_hcd)), 0, sizeof(struct uhci_hcd)); // TODO: Add out of memory
 
     hcd->dev = dev;
-    hcd->io_port = pci_get_bar(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), 4) & ~0xF;
+    hcd->io_port = pci_get_bar(dev, 4) & ~0xF;
 
-    // Hardware variables
     hcd->frame_list_dma = dma_create_pool(1, 1024, 4096);
     hcd->td_pool = dma_create_pool(sizeof(struct uhci_td*), 16, 4);
     hcd->qh_pool = dma_create_pool(sizeof(struct uhci_qh*), 8, 4);

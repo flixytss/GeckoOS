@@ -3,7 +3,7 @@
 #include <net/arp.h>
 #include <net/ethernet.h>
 #include <net/icmp.h>
-#include <mem.h>
+#include <sys/std.h>
 
 u16 ip_checksum(void *data, u16 len) {
     u32 sum = 0;

@@ -9,15 +9,14 @@
 #include "process/process.h"
 #include "sys/errno.h"
 #include <commands.h>
-#include <bootoptions.h>
 #include <colors.h>
 #include <drivers/ps2keyboard.h>
 #include <drivers/serial.h>
 #include <layouts/kb_layouts.h>
 #include <terminal/terminal.h>
 #include <gk/gk.h>
-#include <mem.h>
-#include <drivers/ata.h>
+#include <mem/mmu.h>
+#include <sys/std.h>
 #include <fs/fs.h>
 #include <fs/types/fat32.h>
 #include "sys/types.h"
@@ -259,7 +258,8 @@ static void cmd_sleep5(u8 color) {
 
 static void cmd_reboot(u8 color) {
     print("\nRebooting...");
-    reboot();
+    printf("There isn't a function to reboot yet\n");
+    printf("Please imagine that we rebooted it\n");
 }
 
 static void cmd_print_ticks(u8 color) {
@@ -310,13 +310,17 @@ static void cmd_cat(u8 color) {
     int ret;
     
     struct vfs_inode* inode;
-    if ((ret = vfs_lookup_path(path, &inode)) != 0) {
-        perror(ret);
+    if ((ret = vfs_lookup_path((char*)path, &inode)) != 0) {
+        #ifdef DEBUG
+            perror(ret);
+        #else
+            printf("That file dosen't exists");
+        #endif
         printf("\n");
         return;
     }
     if (inode->mode == VFS_DIR) {
-        perror(EISDIR);
+        printf("That path is a directory");
         printf("\n");
         return;
     }
@@ -326,7 +330,7 @@ static void cmd_cat(u8 color) {
         That is a design issue
     */
     u8* bytes = kmalloc(inode->size);
-    printf("%d\n", vfs_read(inode, bytes, 4096, 0));
+    vfs_read(inode, bytes, 4096, 0);
 
     printf("%s\n", bytes);
 }
@@ -346,7 +350,7 @@ static void cmd_touch(u8 color) {
     printc("\nPath: ", color);
     input(path, 32, color);
     
-    vfs_create_path(path);
+    vfs_create_path((char*)path);
 
     printf("\n");
 }
@@ -395,15 +399,19 @@ static void cmd_cp(u8 color) {
     input(dst, PATH_MAX, color);
     printc("\n", color);
 
-    if ((ret = vfs_lookup_path(src, &src_inode)) != 0) {
-        perror(ret);
+    if ((ret = vfs_lookup_path((char*)src, &src_inode)) != 0) {
+        #ifdef DEBUG
+            perror(ret);
+        #else
+            printf("That file dosen't exists\n");
+        #endif
         return;
     }
-    ret = vfs_lookup_path(dst, &dst_inode);
+    ret = vfs_lookup_path((char*)dst, &dst_inode);
 
     src_file = vfs_open(src_inode, P_FILE_R);
     if (ret == -ENOENT)
-        vfs_create_path(dst); // create file if it dosen't exists
+        vfs_create_path((char*)dst); // create file if it dosen't exists
     dst_file = vfs_open(dst_inode, P_FILE_W);
 
     transferred = 0;
@@ -475,14 +483,14 @@ static void cmd_mv(u8 color) {
 }
 
 static void cmd_mkdir(u8 color) {
-    unsigned char dname[200];
+    u8 dname[PATH_MAX];
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
 
     printc("\nDirectory path: ", color);
     input(dname, 200, color);
     printc("\n", color);
 
-    int result = vfs_mkdir_path(dname);
+    int result = vfs_mkdir_path((char*)dname);
     if (result == 1) {
         printc("Directory created: ", color);
         printc((char*)dname, color);
@@ -546,9 +554,9 @@ static void cmd_meminfo(u8 color) {
     extern struct multiboot2_mmap_entry max_mem_used;
 
     printc("\nMemory:\n", color);
-    printf("  Heap base : %x\n", max_mem_used.base_addr + 0x100000);
-    printf("  Heap end  : %x (%dMb window)\n", (max_mem_used.base_addr + 0x100000) + max_mem_used.length, max_mem_used.length / 1048576);
-    printf("  Memory size  : %dMb\n", max_mem_used.length / 1048576);
+    printf("  Heap base : %llx\n", max_mem_used.base_addr + 0x100000);
+    printf("  Heap end  : %llx (%lluMb window)\n", (max_mem_used.base_addr + 0x100000) + max_mem_used.length, max_mem_used.length / 1048576);
+    printf("  Memory size  : %lluMb\n", max_mem_used.length / 1048576);
     printc("Heap map:\n", color);
     dump_heap();
     printc("\n", color);
@@ -871,19 +879,19 @@ static void cmd_mounts(u8 color) {
 
 static void cmd_cd(u8 color) {
     printf("\n");
-    unsigned char path[4069];
+    u8 path[PATH_MAX];
 
     printf("Actual path: %s\n", actual_path.path);
     printf("Enter the path (must be from the root directory): ");
     input(path, 4096, color);
 
     struct vfs_inode* inode;
-    if (vfs_lookup_path(path, &inode) == -ENOENT) {
+    if (vfs_lookup_path((char*)path, &inode) == -ENOENT) {
         printf("\nPath not found\n");
         return;
     }
 
-    strcpy(actual_path.path, path);
+    strcpy(actual_path.path, (char*)path);
     actual_path.inode = inode;
     printf("\n");
 }

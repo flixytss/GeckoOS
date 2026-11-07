@@ -1,10 +1,11 @@
 #ifndef DRIVE_FS_H
 #define DRIVE_FS_H
 
-#include <mem.h>
+
 #include <partition/partition.h>
 #include <drivers/drives.h>
 #include "sys/types.h"
+
 #define FILENAME_MAX 256
 
 // nfoxers - forward declaration to fix -Wvisibility
@@ -83,7 +84,6 @@ struct drive_fs_t *fs_drive_open( struct kdrive_t *drive, struct drive_fs_t* fs 
 struct drive_fs_t *fs_partition_open( struct kdrive_t *drive, struct partition_t *partition, struct drive_fs_t* fs );
 void fs_free_entries( struct fs_entries_t *entries );
 
-Buffer_t readfile(unsigned char* fname);
 int fsmount(int drive);
 
 extern struct drive_fs_t* fss[16];

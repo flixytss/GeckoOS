@@ -7,7 +7,7 @@
 #include "ports.h"
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
-#include <mem.h>
+#include <sys/std.h>
 #include <stdbool.h>
 #include "sys/types.h"
 

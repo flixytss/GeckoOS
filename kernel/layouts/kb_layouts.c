@@ -2,7 +2,7 @@
 #include <layouts/kb_layouts.h>
 #include "sys/types.h"
 #include "terminal/printf.h"
-#include "mem.h"
+#include "sys/std.h"
 
 KeyboardLayout PS2_LAYOUTS[] = {
     { // US QWERTY

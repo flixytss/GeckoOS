@@ -1,30 +1,25 @@
-;
-; bonk enjoyer (dorito girl)
-;
-; Organize the kernel at 0x10000 for this to work properly
-;
-; Created, because grub will probably be too complex for the "owner" of this repo
-;
-;
-
 org 0x7c00
 bits 16
 
+SECTORS_COUNT equ 0x80
+
 _start:
-; load few more sectors of bootloader, we need them
+	; Getting sectors from disk
 	mov ah, 0x02
 	mov al, 3
 	mov ch, 0x0
 	mov cl, 0x2
 	mov dh, 0x0
-	mov dl, 0x80
+	mov dl, SECTORS_COUNT
 	mov bx, 0x7e00
 	mov si, 0
 	mov es, si
 	int 0x13
 
-; load the c part
-mov ah, 0x02
+	jmp $
+
+	; load the c part
+	mov ah, 0x02
 	mov al, 3
 	mov ch, 0x0
 	mov cl, 0x5
@@ -35,8 +30,6 @@ mov ah, 0x02
 	mov es, si
 	int 0x13
 
-; get memory info from bios
-
 boot_2:
 	cli
 	lgdt	[gdt_descriptor]
@@ -45,15 +38,13 @@ boot_2:
 	or	eax, 1
 	mov	cr0, eax
 
-	;; Stack
-
-	mov	esp, 0x900000
+	; Setting up stack
+	mov	esp, 0x900000 ; What would happen if the device dosen't have more than 9 mb of ram
 
 	jmp	0x8:protected_mode_exec	
 
 BOOT_DRIVE	db 0x0
 
-;; GDT
 bits 32
 
 protected_mode_exec:
@@ -67,8 +58,7 @@ protected_mode_exec:
 
 	jmp	0x10000
 
-times 446 - ($ - $$) db 0
-	; MBR
+times 446 - ($ - $$) db 0 ; MBR
 	db 0x80
 	db 0x0
 	db 0x0
@@ -92,12 +82,9 @@ times 446 - ($ - $$) db 0
 	dd 0x1
 
 times 510 - ($ - $$) db 0
+dw 0xAA55 ; Boot signature
 
-;; Boot signature
-
-dw 0xAA55
-
-gdt_start:
+gdt_start: ; GDT
 gdt_null:
 	dq	0x0
 gdt_code:
@@ -120,14 +107,10 @@ gdt_descriptor:
 	dd	gdt_start
 
 times 1024 - ($ - $$) db 0
-; 0x8000
-; our mappings are here
-
 times 1800 - ($ - $$) db 0
 
 bits 16
 get_memory_map_info:
-
 	mov si, 0x0
 	mov es, si
 	mov di, 0x8000 ; 0x0:0x8000

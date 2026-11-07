@@ -2,7 +2,6 @@
 #define DRIVES_H
 
 #include "sys/types.h"
-#include <mem.h>
 #include <sys/types.h>
 #include <partition/partition.h>
 

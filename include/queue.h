@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 
 typedef struct {
@@ -11,3 +13,5 @@ int enqueue(Queue *q, int v);
 int dequeue(Queue *q, int *v);
 
 // nfoxers: we should REALLY implement actual linked lists...
+
+#endif
