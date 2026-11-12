@@ -14,6 +14,22 @@
 
 #define PCI_HDR_DEV_ILINE_OFFSET 0x3C
 
+/*
+    PCI Drivers return meaning:
+
+    -1: Any error related to the base memory address
+    -2: Any error related to the memory
+    -2: No memory available
+    -3: Timeout
+    -4: DMA Allocation failed
+*/
+
+#define PCI_ERRNO_BAR       1
+#define PCI_ERRNO_MEM       2
+#define PCI_ERRNO_NOMEM     2
+#define PCI_ERRNO_TIMEOUT   3
+#define PCI_ERRNO_DMA       4
+
 struct pci_bus {
     struct pci_bus *parent;
     struct pci_bus *children;
@@ -43,7 +59,22 @@ struct pci_dev {
     u32 class;
     u32 master : 1;
 
-    u8 irq;
+    u32 _bus, _slot, _fn;
+    u8 header_type;
+
+    u8  (*readb)(struct pci_dev* dev, u32 reg);
+    u16 (*readw)(struct pci_dev* dev, u32 reg);
+    u32 (*readl)(struct pci_dev* dev, u32 reg);
+    void (*writeb)(struct pci_dev* dev, u32 reg, u8 buff);
+    void (*writew)(struct pci_dev* dev, u32 reg, u16 buff);
+    void (*writel)(struct pci_dev* dev, u32 reg, u32 buff);
+
+    void (*enable_busmastering)(struct pci_dev* dev);
+    void (*disable_bios_handle)(struct pci_dev* dev);
+    u8   (*get_intline)(struct pci_dev* dev);
+
+    u32  (*get_base_memory)(struct pci_dev* dev, u8 index);
+    u64  (*get_base_memory_size)(struct pci_dev* dev, u8 index);
 };
 
 struct pci_common_hdr {
@@ -158,27 +189,18 @@ struct pci_header0 {
     u16 bridge_control;
 } __attribute__((packed));
 
-struct PCIBar {
-    union {
-        void* address;
-        u16 port;
-    } u;
-    u64 size;
-    u32 flags;
-};
-
 struct pci_device_shortcut {
     u32 bus;
     u32 slot;
     u32 func;
 };
 
-u32 pci_readl(u32 bus, u32 slot, u32 func, u8 off);
-u16 pci_readw(u32 bus, u32 slot, u32 func, u8 off);
-u8  pci_readb(u32 bus, u32 slot, u32 func, u8 off);
-void     pci_writel(u32 bus, u32 slot, u32 func, u32 off, u32 data);
-void     pci_writew(u32 bus, u32 slot, u32 func, u32 off, u16 data);
-void     pci_writeb(u32 bus, u32 slot, u32 func, u32 off, u8 data);
+u32 pci_readl(struct pci_dev* dev, u32 off);
+u16 pci_readw(struct pci_dev* dev, u32 off);
+u8  pci_readb(struct pci_dev* dev, u32 off);
+void     pci_writel(struct pci_dev* dev, u32 off, u32 data);
+void     pci_writew(struct pci_dev* dev, u32 off, u16 data);
+void     pci_writeb(struct pci_dev* dev, u32 off, u8 data);
 
 u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func);
 void    enumerate_pcibus(struct pci_bus *bus);
@@ -188,10 +210,5 @@ void pci_lspci();
 void pci_detect_controllers();
 
 const char *nic_vendor_str(u16 vendor);
-
-u32 pci_get_bar(struct pci_dev* dev, u8 index);
-
-void pci_dev_disable_bios(struct pci_dev* dev);
-void pci_dev_enable_busmastering(struct pci_dev* dev);
 
 #endif

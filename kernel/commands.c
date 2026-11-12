@@ -861,9 +861,9 @@ static void cmd_show_usb_info(u8 color) {
 
 static void cmd_showdrives(u8 color) {
     printf("\n");
-    for (int i = 0; i < 32; i++) {
-        if (!drives[i].sector_size) continue;
-        printf("%p: %s - %s\n", get_kdrive(i), drives[i].sysname, drives[i].name);
+    for (int i = 0; i < 32; i++) { // Note: Hardcode size
+        if (!get_kdrive(i)) continue;
+        printf("%p: %s - %s\n", get_kdrive(i), get_kdrive(i)->sysname, get_kdrive(i)->name);
     }
 
     printf("Actual filesystem's drive: %s\n", fss[actual_fs]->drive->name);

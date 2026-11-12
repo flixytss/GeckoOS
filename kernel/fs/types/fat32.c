@@ -3,9 +3,7 @@
 // Scope of AI usage:
 // Help with transforming FAT16 to FAT32 and help with debugging
 
-
 #include <fs/types/fat32.h>
-#include <drivers/ata.h>
 #include <limits.h>
 #include <mem/mmu.h>
 #include <sys/std.h>
@@ -100,7 +98,7 @@ typedef struct {
     struct kdrive_t *drive;
 } FAT32_Volume;
 
-static u8 sector_buf[ATA_SECTOR_SIZE];
+static u8 sector_buf[512];
 
 static u32 dir_entry_cluster(const FAT32_DirEntry *e) {
     return ((u32)e->first_cluster_high << 16) | e->first_cluster_low;
@@ -130,7 +128,7 @@ static int fat32_write_fat(struct kdrive_t *drive, FAT32_Volume *pvol,
     u32 fat_offset  = cluster * 4;
     u32 fat_sector  = pvol->fat_lba + (fat_offset / drive->sector_size);
     u32 byte_offset = fat_offset % drive->sector_size;
-    u8  tmp[ATA_SECTOR_SIZE];
+    u8  tmp[512];
 
     if (drive->read((void*)drive, fat_sector, 1, tmp) < 0) return -1;
 
@@ -153,7 +151,7 @@ static u32 fat32_alloc_cluster(struct kdrive_t *drive, FAT32_Volume *pvol)
 {
     u32 fat_sectors      = pvol->sectors_per_fat;
     u32 entries_per_sector = drive->sector_size / 4;
-    u8  tmp[ATA_SECTOR_SIZE];
+    u8  tmp[512];
 
     for (u32 s = 0; s < fat_sectors; s++) {
         if (drive->read((void*)drive, pvol->fat_lba + s, 1, tmp) < 0) return 0;
@@ -210,7 +208,7 @@ static void encode_83_name(char *name, u8 *raw8, u8 *raw3)
     for (i = 0; name[i]; i++) if (name[i] == '.') dot = i;
 
     int base_len = (dot >= 0) ? dot : (int)strlen(name);
-    if (base_len > 8) base_len = 8;
+    // if (base_len > 8) base_len = 8;
     for (i = 0; i < base_len; i++) {
         char c = name[i];
         if (c >= 'a' && c <= 'z') c -= 32;
@@ -273,7 +271,7 @@ static u32 fat32_write_cluster_chain(struct kdrive_t *drive,
         prev_cluster = cl;
 
         u32 lba = cluster_to_lba(pvol, cl);
-        u8  tmp[ATA_SECTOR_SIZE];
+        u8  tmp[512];
 
         for (u32 s = 0; s < pvol->bpb.sectors_per_cluster; s++) {
             memset(tmp, 0, drive->sector_size);
@@ -306,7 +304,7 @@ static int fat32_write_dir_entry(struct kdrive_t *drive,
                                   u32 lba, u32 idx_in_sector,
                                   const FAT32_DirEntry *entry)
 {
-    u8 tmp[ATA_SECTOR_SIZE];
+    u8 tmp[512];
     if (drive->read((void*)drive, lba, 1, tmp) < 0) return -1;
     FAT32_DirEntry *slot = (FAT32_DirEntry *)tmp + idx_in_sector;
     *slot = *entry;
@@ -390,7 +388,7 @@ size_t fat32_write_file(struct drive_file_t* file, size_t offset, const u8 *cont
 
         u32 lba = cluster_to_lba(pvol, cluster) + sector_index;
 
-        u8 tmp[ATA_SECTOR_SIZE];
+        u8 tmp[512];
 
         if (byte_offset != 0 || chunk != sector_size) {
             drive->read((void *)drive, lba, 1, tmp);
@@ -480,7 +478,7 @@ int fat32_create_file(struct drive_fs_t *fs, char *name,
     struct kdrive_t *drive = fs->drive;
 
     // Find a free slot in root directory
-    u8 tmp[ATA_SECTOR_SIZE];
+    u8 tmp[512];
     DirSearchCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.find_free = 1;
@@ -514,7 +512,7 @@ int fat32_delete_file(struct drive_fs_t *fs, char *name)
     FAT32_Volume   *pvol  = (FAT32_Volume *)fs->userdata1;
     struct kdrive_t *drive = fs->drive;
 
-    u8 tmp[ATA_SECTOR_SIZE];
+    u8 tmp[512];
     DirSearchCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.find_match = 1;
@@ -541,7 +539,7 @@ int fat32_mkdir(struct drive_fs_t *fs, u32 dir_cluster, const char *name)
     FAT32_Volume   *pvol  = (FAT32_Volume *)fs->userdata1;
     struct kdrive_t *drive = fs->drive;
 
-    u8 tmp[ATA_SECTOR_SIZE];
+    u8 tmp[512];
     DirSearchCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.find_free = 1;
@@ -551,7 +549,7 @@ int fat32_mkdir(struct drive_fs_t *fs, u32 dir_cluster, const char *name)
 
     FAT32_DirEntry entry;
     memset(&entry, 0, sizeof(entry));
-    encode_83_name((char*)name, entry.name, entry.ext);
+    encode_83_name((char*)name, entry.name, entry.ext); // Limits the filename size to 8
     entry.attributes         = FAT32_ATTR_DIRECTORY;
     entry.write_date         = (u16)((44 << 9) | (1 << 5) | 1);
 
@@ -648,7 +646,7 @@ struct fs_entries_t fat32_get_dir_entries(struct drive_fs_t *fs, u32 dir_cluster
     result.count   = 0;
     result.entries = 0;
 
-    u8 tmp[ATA_SECTOR_SIZE];
+    u8 tmp[512];
     EnumCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.pvol     = pvol;
@@ -688,17 +686,16 @@ struct drive_fs_t *fat32_drive_open(struct kdrive_t *drive,
 
     if (drive->read((void*)drive, partition->lba, 1, sector_buf) < 0)
         return NULL;
-
     memcpy(&volume.bpb, sector_buf, sizeof(FAT32_BPB));
 
     if (volume.bpb.bytes_per_sector == 0 || volume.bpb.sectors_per_cluster == 0) {
         printf("FAT32] Error: invalid BPB (zero bytes/sector or sectors/cluster)\n");
-        return NULL;
+        goto error;
     }
 
     if (volume.bpb.sectors_per_fat_16 != 0) {
         printf("FAT32] Error: sectors_per_fat_16 != 0; this may be a FAT16 volume\n");
-        return NULL;
+        goto error;
     }
 
     volume.sectors_per_fat = volume.bpb.sectors_per_fat_32;
@@ -724,6 +721,11 @@ struct drive_fs_t *fat32_drive_open(struct kdrive_t *drive,
     filesystem->root_dir.get_entries = fat32_fs_get_dir_entries;
 
     return filesystem;
+
+error:
+    if (partition->sysname) printf("Failed to make the FAT32 Filesystem from the partition %s\n", partition->sysname);
+
+    return NULL;
 }
 
 struct drive_fs_t *fat32_drive_close(struct drive_fs_t *fs)

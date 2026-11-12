@@ -61,6 +61,14 @@ struct madt_iso {
     u16 flags;
 } __attribute__((packed));
 
+struct acpi_gas {
+    u8 AddressSpace;
+    u8 BitWidth;
+    u8 BitOffset;
+    u8 AccessSize;
+    u64 Address;
+};
+
 typedef struct {
     acpi_header_t header;
     u32 firmwareControl;
@@ -73,20 +81,34 @@ typedef struct {
     u8 acpiDisable;
     u8 s4BiosReq;
     u8 pStateCnt;
+
+    // Registers
+
+    /// Status and enable registers
     u32 pm1aEventBlk;
     u32 pm1bEventBlk;
+
+    /// Control registers
     u32 pm1aControlBlk;
     u32 pm1bControlBlk;
+
+    /// Another control register
     u32 pm2ControlBlk;
+
+    /// Power management time register
     u32 pmTimerBlk;
+
     u32 gpe0Blk;
     u32 gpe1Blk;
+
+    /// Register lengths
     u8 pm1EventLength;
     u8 pm1ControlLength;
     u8 pm2ControlLength;
     u8 pmTimerLength;
     u8 gpe0BlkLength;
     u8 gpe1BlkLength;
+
     u8 gpe1Base;
     u8 cStateControl;
     u16 worstC2Latency;
@@ -101,31 +123,39 @@ typedef struct {
     u16 bootArchFlags;
     u8 reserved2;
     u32 flags;
-    u8 resetReg[12];
+    struct acpi_gas resetReg;
     u8 resetValue;
     u16 armBootArchFlags;
     u8 fadtMinorVersion;
     u64 xFirmwareControl;
     u64 xDsdt;
-    u8 xPm1aEventBlk[12];
-    u8 xPm1bEventBlk[12];
-    u8 xPm1aControlBlk[12];
-    u8 xPm1bControlBlk[12];
-    u8 xPm2ControlBlk[12];
-    u8 xPmTimerBlk[12];
-    u8 xGpe0Blk[12];
-    u8 xGpe1Blk[12];
-    u8 sleepControlReg[12];
-    u8 sleepStatusReg[12];
+
+    // More registers but better
+    struct acpi_gas xPm1aEventBlk;
+    struct acpi_gas xPm1bEventBlk;
+    struct acpi_gas xPm1aControlBlk;
+    struct acpi_gas xPm1bControlBlk;
+    struct acpi_gas xPm2ControlBlk;
+    struct acpi_gas xPmTimerBlk;
+    struct acpi_gas xGpe0Blk;
+    struct acpi_gas xGpe1Blk;
+    struct acpi_gas sleepControlReg;
+    struct acpi_gas sleepStatusReg;
+
     u64 hypervisorVendorId;
 } __attribute__((__packed__)) acpi_fadt_t;
 
-extern uintptr_t acpi_lapic_base;
-extern uintptr_t acpi_ioapic_base;
-int acpi_init();
+struct acpi {
+    acpit_madt_t* madt;
+    acpi_fadt_t* fadt;
+    struct madt_iso* isos[10];
+    
+    void* acpi_lapic_base;
+    void* acpi_ioapic_base;
+};
 
-extern struct madt_iso isos[32];
-extern int isos_num;
-
+struct acpi* acpi_init();
 void acpi_irq_handler(registers_t* regs);
-int shutdown();
+int acpi_enable(struct acpi* acpi);
+
+extern struct acpi* global_acpi;

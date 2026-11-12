@@ -1,10 +1,12 @@
 #include "boot/multiboot2.h"
-#include "drivers/acpi.h"
+#include "drivers/acpi/acpi-driver.h"
+#include "drivers/acpi/acpi.h"
 #include "drivers/apic/lapic.h"
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
 #include "mem/mmu.h"
+#include "ports.h"
 #include "terminal/printf.h"
 #include <colors.h>
 #include <commands.h>
@@ -20,7 +22,6 @@
 #include <mem/physical_mem.h>
 #include <net/arp.h>
 #include <net/net.h>
-#include <stdbool.h>
 #include "sys/types.h"
 #include <terminal/terminal.h>
 #include <fs/fs.h>
@@ -31,9 +32,8 @@
 
 #define GECKO_VERSION "26.03"
 
-void process_input(unsigned char *buffer) {
-    run_command(buffer, TERM_COLOR);
-}
+void process_input(unsigned char *buffer)
+    { run_command(buffer, TERM_COLOR); }
 
 void kmain();
 
@@ -47,7 +47,6 @@ bool has_apic;
 typedef void (*driver_init)();
 driver_init drivers[] = {
     terminal_init,
-    // ata_init,
     enumerate_pci,
     pci_detect_controllers,
     net_init,
@@ -61,36 +60,28 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
 
     if (!vmm_init()) {
         printc("Vmm_init failed -- halting\n", VGA_COLOR_RED);
-        for (;;)
-            asm volatile("hlt");
+        for (;;) HALT();
     }
-
-    // Setting up interrupts
 
     has_apic = cpu_has_apic();
 
-    int ret = acpi_init();
-    if (ret != 0) {
-        set_printf_color(VGA_COLOR_RED);
-            printf("Initializing apic failed: %d \n", ret);
-        set_printf_color(VGA_COLOR_WHITE);
-    }
+    global_acpi = acpi_init();
 
     init_idt();
     irq_install();
 
     if (has_apic) {
-        asm volatile("cli"); // cutting interrupts while we set em up
-        ret = lapic_init();
-        if (ret) {
-            printf("Setting up LAPIC failed err %d", ret);
-        }
+        CLI();
+        if (lapic_init())
+            printf("Setting up LAPIC failed.");
+        
         ioapic_init();
-        asm volatile("sti"); // repoening interrupts
+        STI();
 
         start_pit_timer(PITHZ);
         lapic_timer_start();
         lapic_start_cores();
+        acpi_enable(global_acpi); // Takes 3 seconds
     }
 
     printc("Enabling some drivers\n", VGA_COLOR_LIGHT_GREY);
@@ -99,8 +90,6 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
     register_interrupt_handler(INT_INVINS, ud_exception_handler);
     for (int i = 0; i < (sizeof(drivers) / sizeof(drivers[0])); i++) drivers[i]();
     if (has_ps2mouse_support) mouse_init();
-    // outb(0x22, 0x70); // I think this is support for Cyrix processors
-    // outb(0x23, 0x01);
 
     set_layout(PS2_LAYOUTS[0]);
 
@@ -122,14 +111,16 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
 
 void kmain() {
     int i;
-    for (i = 0; i < (sizeof(drives) / sizeof(drives[0])); i++) {
-        if (!drives[i].sector_size) continue;
-        for(;;);
+    for (i = 0; i < 32; i++) { // Note: Hardcode size
+        if (!get_kdrive(i)) continue;
         fsmount(i);
     }
-    // dump_heap();
 
-    // Adds the first drive's filesystem to the virtual filesystems array
+    if (!fss[actual_fs]) {
+        printf("There is no filesystem available, Exploding...\n");
+    }
+
+    // Adds the first drive partition's filesystem to the virtual filesystems array
     vfs_add_fs(fss[actual_fs]);
 
     // Adds the devfs to the virtual filesystems array
@@ -141,9 +132,19 @@ void kmain() {
 
     // Create /dev in the main filesystem and mount devfs there
     vfs_mkdir_path("/dev");
-    vfs_mount("/dev", get_vfs_(1));
+    vfs_mount("/dev", get_vfs_(2));
 
-    vfs_create_path("/file");
+    acpi_aml_init(global_acpi);
+
+    // Adds every partition to its own directory
+    struct kdrive_t* drive = get_kdrive(0);
+    for (int i = 0; i < drive->partitions.count; i++) {
+        char path[512];
+        npf_snprintf(path, 512, "P%s", drive->partitions.partitions->sysname);
+
+        vfs_mkdir_path(path);
+        vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
+    }
     
     while (1) {
         printc("gecko> ", PROMPT_COLOR);

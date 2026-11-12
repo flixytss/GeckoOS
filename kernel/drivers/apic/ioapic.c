@@ -1,7 +1,6 @@
 #include "drivers/apic/ioapic.h"
-#include "drivers/acpi.h"
+#include "drivers/acpi/acpi-driver.h"
 #include "drivers/apic/lapic.h"
-#include "drivers/ps2keyboard.h"
 #include "drivers/vga.h"
 #include "mem/paging.h"
 #include "terminal/terminal.h"
@@ -11,7 +10,6 @@
 //the modified virtual adress by virtual mapping
 volatile u32 *ioapic;
 //the original physical base given by the madt table
-extern uintptr_t acpi_ioapic_base;
 
 //reading a register form the ioapic
 u32 ioapic_read(u32 reg)
@@ -53,13 +51,13 @@ void ioapic_init()
 {
 
     // Map IOAPIC physical address to virtual memory
-    if (!acpi_ioapic_base) {
+    if (!global_acpi->acpi_ioapic_base) {
         printc("No IOAPIC found in ACPI tables", VGA_COLOR_RED);
     }
 
-    uintptr_t ioapic_virt = acpi_ioapic_base;
+    uintptr_t ioapic_virt = (uintptr_t)global_acpi->acpi_ioapic_base;
 
-    vmm_map(vmm_get_pml4(), acpi_ioapic_base, ioapic_virt,
+    vmm_map(vmm_get_pml4(), (u64)global_acpi->acpi_ioapic_base, ioapic_virt,
             PTE_WRITABLE | PTE_CACHE_DISABLE);
 
     ioapic = (volatile u32 *)ioapic_virt;
@@ -101,7 +99,4 @@ void ioapic_redirect_irq(int gsi, int vector, u16 flags)
         ((u64)lapic_get_id() << 56);                  
     
     ioapic_set_entry((u32 *)ioapic, pin, entry);
-   
-    // ioapic_dump_entry(gsi);
-   
 }

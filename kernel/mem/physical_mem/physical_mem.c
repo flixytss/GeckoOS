@@ -129,13 +129,11 @@ void initialize_memory_manager_from_mbi(u64 mbi_addr)
                     #ifdef DEBUG
                         if (entry->length) set_printf_color(VGA_COLOR_DARK_GREY);
                         else set_printf_color(VGA_COLOR_RED);
-                        printf("Available memory at 0x%p with %lu bytes\n", entry->base_addr, entry->length); // %d is for i32s
-                        if (!entry->length) {
-                            printf("Available memory with negative length? (That isn't good) Halting forever...");
-                            for(;;) HALT();
-                        }
+                        printf("Available memory at 0x%llu with %llu bytes\n", entry->base_addr, entry->length);
+                        if (!entry->length)
+                            printf("Available memory with negative length? Let's ignore it");
                     #endif
-                    free_region(entry->base_addr, entry->length);
+                    if (entry->length && entry->base_addr) free_region(entry->base_addr, entry->length);
                 }
                 entry = (multiboot2_mmap_entry_t *)((uintptr_t)entry +
                                                     mmap_tag->entry_size);
@@ -161,7 +159,7 @@ void initialize_memory_manager_from_mbi(u64 mbi_addr)
     set_block(0);
     used_blocks++;
 
-    //for lapic vectors
+    // for lapic vectors
     #define AP_TRAMPOLINE_ADDR 0x8000
     #define AP_TRAMPOLINE_SIZE 0x1000 //4kb
     reserve_region(AP_TRAMPOLINE_ADDR, AP_TRAMPOLINE_SIZE);

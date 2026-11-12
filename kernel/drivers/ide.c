@@ -1,5 +1,6 @@
 #include "drivers/drives.h"
 #include "drivers/pit.h"
+#include "mem/mmu.h"
 #include "ports.h"
 #include "drivers/ide.h"
 #include "sys/types.h"
@@ -233,15 +234,15 @@ void ide_init(u32 BAR0, u32 BAR1, u32 BAR2, u32 BAR3, u32 BAR4) {
 
     for (i = 0; i < 4; i++)
         if (ide_devices[i].Reserved) {
-            struct kdrive_t drive;
-            memset(&drive, 0, sizeof(drive));
+            struct kdrive_t* drive = kmalloc(sizeof(struct kdrive_t));
+            memset(drive, 0, sizeof(*drive));
 
             if (ide_devices[i].Size) {
-                npf_snprintf_(drive.name, 64, "IDE Drive %d - %s", i, ide_devices[i].Model);
-                drive.userdata1 = i;
-                drive.read = ide_drives_read;
-                drive.write = ide_drives_write;
-                drive.sector_size = 512; // Hardcoded size
+                npf_snprintf_(drive->name, 64, "IDE Drive %d - %s", i, ide_devices[i].Model);
+                drive->userdata1 = i;
+                drive->read = ide_drives_read;
+                drive->write = ide_drives_write;
+                drive->sector_size = 512; // Hardcoded sector size
                 register_kdrive(drive);
             }
 

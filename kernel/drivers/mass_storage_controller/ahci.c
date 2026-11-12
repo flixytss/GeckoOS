@@ -6,7 +6,7 @@
 #define ABAR_OFF 0x24
 
 void ahci_init(struct pci_dev* device) {
-    u32 Abar = pci_get_bar(device, 5);
+    u32 Abar = device->readl(device, 5);
     if (!Abar) goto err;
 
     u8* registers_address = (u8*)((u64)Abar & ~0xF); // 16-byte aligned address

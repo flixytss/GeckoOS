@@ -3,7 +3,6 @@
 #include <arch/x86_64/irq.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
-#include <drivers/acpi.h>
 
 volatile u64 pit_timer = 0;
 

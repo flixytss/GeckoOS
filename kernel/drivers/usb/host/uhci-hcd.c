@@ -121,7 +121,7 @@ struct uhci_hcd* uhci_create(struct pci_dev* dev) {
     struct uhci_hcd* hcd = memset(kmalloc(sizeof(struct uhci_hcd)), 0, sizeof(struct uhci_hcd)); // TODO: Add out of memory
 
     hcd->dev = dev;
-    hcd->io_port = pci_get_bar(dev, 4) & ~0xF;
+    hcd->io_port = dev->readl(dev, 4) & ~0xF;
 
     hcd->frame_list_dma = dma_create_pool(1, 1024, 4096);
     hcd->td_pool = dma_create_pool(sizeof(struct uhci_td*), 16, 4);

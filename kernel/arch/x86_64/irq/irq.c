@@ -1,4 +1,4 @@
-#include "drivers/acpi.h"
+#include "drivers/acpi/acpi-driver.h"
 #include "drivers/apic/ioapic.h"
 #include "drivers/apic/lapic.h"
 #include <arch/x86_64/idt.h>
@@ -14,24 +14,24 @@ extern void irq_common_stub();
 /* I think the IRQ is causing a general protection fault at boot, but it only happens sometimes */
 
 extern void (*irq_stub_table[MAX_IRQS])(void);
-//TODO:remeber this are numbered 32->0 and so on wen dealing with vectors
-//!so the index means the irq not the idt number note for me
 isr_t irq_routines_table[MAX_IRQS][3];
 
 int irq_install_handler(int irq, isr_t handler, int flags) {
-    for (int i = 0; i < isos_num; i++) {
-        const struct madt_iso iso = isos[i];
-        if (iso.irq == irq) {
-            irq = iso.gsi;
-            flags = iso.flags;
+    if (cpu_has_apic()) {
+        for (int i = 0; i < 10; i++) {
+            const struct madt_iso* iso = global_acpi->isos[i];
+            if (iso->irq == irq) {
+                irq = iso->gsi;
+                flags = iso->flags;
+            }
         }
+
+        ioapic_redirect_irq(irq, irq + 32, flags);
     }
 
     int free = 0;
     while (irq_routines_table[irq][free++]);
-
     irq_routines_table[irq][free - 1] = handler;
-    if (cpu_has_apic()) ioapic_redirect_irq(irq, irq + 32, flags);
 
     return free - 1;
 }

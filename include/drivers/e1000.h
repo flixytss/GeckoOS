@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drivers/pci.h"
 #include "sys/types.h"
 #include <stdbool.h>
 
@@ -97,7 +98,7 @@ typedef struct {
     u16 special;
 } __attribute__((packed)) e1000_tx_desc_t;
 
-bool e1000_init(u8 bus, u8 slot, u8 func);
+int  e1000_init(struct pci_dev* dev);
 int  e1000_send(const void *data, u16 len);
 void e1000_get_mac(u8 mac[6]);
 int  e1000_receive(u8 *buf, u16 *len);

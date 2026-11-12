@@ -67,7 +67,7 @@ struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, u64 ino) {
 
     return inode;
 }
-void vfs_add_fs(struct drive_fs_t* fs) {
+int vfs_add_fs(struct drive_fs_t* fs) {
     int index = 0;
     while (vfs[index]) index++;
 
@@ -82,12 +82,16 @@ void vfs_add_fs(struct drive_fs_t* fs) {
     filesystem->root->ops = vfs_ops[VFS_OPS_FAT32]; // TODO: add support for more filesystems
     filesystem->root->ino = fs->root_dir.userdata2;
     filesystem->reserved = fs;
+
+    return index;
 }
-void vfs_add_vfs(struct vfs_filesystem* fs) {
+int vfs_add_vfs(struct vfs_filesystem* fs) {
     int index = 0;
     while (vfs[index]) index++;
 
     vfs[index] = fs;
+
+    return index;
 }
 
 struct vfs_filesystem* get_vfs_(int index) { return vfs[index]; }

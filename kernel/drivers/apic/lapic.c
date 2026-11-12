@@ -1,12 +1,12 @@
 #include "drivers/apic/lapic.h"
-#include "drivers/acpi.h"
+#include "drivers/acpi/acpi-driver.h"
 #include "arch/x86_64/irq.h"
 #include "mem/paging.h"
 #include "mem/physical_mem.h"
 #include "ports.h"
-#include <stdbool.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
+
 #define IA32_APIC_BASE_MSR        0x1B
 #define IA32_APIC_BASE_MSR_ENABLE (1ULL << 11)
 #define IA32_APIC_BASE_MSR_BSP    (1ULL << 8)
@@ -17,7 +17,6 @@
 extern volatile u32 *lapic;
 
 volatile u32 *lapic;
-extern uintptr_t acpi_lapic_base;
 // model specific register acess read
 static inline u64 rdmsr(u32 msr)
 {
@@ -118,7 +117,6 @@ u64 cpu_get_apic_base(void)
 }
 
 volatile u32 *lapic;
-extern uintptr_t acpi_lapic_base;
 
 u32 lapic_read(u32 reg) { return lapic[reg / 4]; }
 
@@ -138,8 +136,8 @@ int lapic_init()
 
     // Map LAPIC
     uintptr_t lapic_phys = cpu_get_apic_base();
-    if (acpi_lapic_base != 0) {
-        lapic_phys = acpi_lapic_base;
+    if (global_acpi->acpi_lapic_base != 0) {
+        lapic_phys = (u64)global_acpi->acpi_lapic_base;
     }
 
     // Identity map (or map to a known virtual address)

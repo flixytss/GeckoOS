@@ -34,7 +34,7 @@ static block *create_block(size_t size, size_t alignment) {
     block *curl = free_list_head;
 
     while (curl) {
-        if (curl->free && curl->size >= size && curl->magic == BLOCK_MAGIC) {
+        if (curl->free && curl->size >= size) {
             size_t leftover = curl->size - size;
 
             if (leftover >= sizeof(block) + 16) {

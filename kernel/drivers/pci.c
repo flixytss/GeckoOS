@@ -15,50 +15,64 @@
 
 struct pci_bus pci_root_bus;
 
-u32 pci_readl(u32 bus, u32 slot, u32 func, u8 off) {
-    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+u32 pci_readl(struct pci_dev* dev, u32 off) {
+    u32 addr = (dev->_bus << 16) | (dev->_slot << 11) | (dev->_fn << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
     return inl(PCI_CFG_DATA);
 }
 
-u16 pci_readw(u32 bus, u32 slot, u32 func, u8 off) {
-    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+u16 pci_readw(struct pci_dev* dev, u32 off) {
+    u32 addr = (dev->_bus << 16) | (dev->_slot << 11) | (dev->_fn << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
     return (u16)((inl(PCI_CFG_DATA) >> ((off & 2) * 8)) & 0xffff);
 }
 
-u8 pci_readb(u32 bus, u32 slot, u32 func, u8 off) {
-    u32 v = pci_readl(bus, slot, func, off & ~3);
+u8 pci_readb(struct pci_dev* dev, u32 off) {
+    u32 v = pci_readl(dev, off & ~3);
     return (v >> ((off & 3) * 8)) & 0xff;
 }
 
-void pci_writel(u32 bus, u32 slot, u32 func, u32 off, u32 data) {
-    u32 addr = (bus << 16) | (slot << 11) | (func << 8) | (off & 0xFC) | 0x80000000;
+void pci_writel(struct pci_dev* dev, u32 off, u32 data) {
+    u32 addr = (dev->_bus << 16) | (dev->_slot << 11) | (dev->_fn << 8) | (off & 0xFC) | 0x80000000;
     outl(PCI_CFG_ADDR, addr);
     outl(PCI_CFG_DATA, data);
 }
 
-void pci_writew(u32 bus, u32 slot, u32 func, u32 off, u16 data) {
+void pci_writew(struct pci_dev* dev, u32 off, u16 data) {
     u32 align = off & ~3;
-    u32 o     = pci_readl(bus, slot, func, align);
+    u32 o     = pci_readl(dev, align);
     u8  shift = (off & 2) * 8;
-    pci_writel(bus, slot, func, align, (o & ~(0xffff << shift)) | ((u32)data << shift));
+    pci_writel(dev, align, (o & ~(0xffff << shift)) | ((u32)data << shift));
 }
 
-void pci_writeb(u32 bus, u32 slot, u32 func, u32 off, u8 data) {
+void pci_writeb(struct pci_dev* dev, u32 off, u8 data) {
     u32 align = off & ~3;
-    u32 o     = pci_readl(bus, slot, func, align);
+    u32 o     = pci_readl(dev, align);
     u8  shift = (off & 3) * 8;
-    pci_writel(bus, slot, func, align, (o & ~(0xff << shift)) | ((u32)data << shift));
+    pci_writel(dev, align, (o & ~(0xff << shift)) | ((u32)data << shift));
 }
 
-#define PARAMETERS(dev) dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn)
-void pci_dev_disable_bios(struct pci_dev* dev)
-    { pci_writew(PARAMETERS(dev), 0xC0, 0x2000); }
-void pci_dev_enable_busmastering(struct pci_dev* dev)
-    { pci_writew(PARAMETERS(dev), 0x4, 0x5); }
-u32 pci_get_bar(struct pci_dev* dev, u8 index)
-    { return pci_readl(PARAMETERS(dev), BAR0_OFF + (BAR_SIZE * index)); }
+static void pci_dev_disable_bios(struct pci_dev* dev)
+    { pci_writew(dev, 0xC0, 0x2000); }
+static void pci_dev_enable_busmastering(struct pci_dev* dev)
+    { pci_writew(dev, 0x4, 0x5); }
+static u32 pci_get_bar(struct pci_dev* dev, u8 index)
+    { return dev->readl(dev, BAR0_OFF + (BAR_SIZE * index)); }
+static u8 pci_dev_get_intline(struct pci_dev* dev)
+    { return pci_readb(dev, 0x3C); }
+static u64 pci_get_bar_size(struct pci_dev* dev, u8 index) {
+    u32 reg;
+    u32 bar, mask;
+
+    reg = BAR0_OFF + (BAR_SIZE * index);
+    bar = dev->readl(dev, reg);
+
+    dev->writel(dev, reg, 0xFFFFFFFF);
+    mask = dev->readl(dev, reg);
+    dev->writel(dev, reg, bar);
+
+    return ~(mask & ~0xF) + 1;
+}
 
 #define PCI_CLASSES_NUM 120
 const char* pci_classes[PCI_CLASSES_NUM] = {
@@ -148,9 +162,7 @@ static void alloc_new_bus(struct pci_bus *parent, struct pci_dev *self) {
     child->devices  = NULL;
     child->children = NULL;
 
-    child->secondary = pci_readb(
-        parent->bus, PCI_DEV(self->devfn), PCI_FN(self->devfn),
-        offsetof(struct pci_hdr, bridge.ss_busnum));
+    child->secondary = self->readb(self, offsetof(struct pci_hdr, bridge.ss_busnum));
 
     child->bus     = child->secondary;
     child->primary = child->secondary;
@@ -173,21 +185,43 @@ static void alloc_new_bus(struct pci_bus *parent, struct pci_dev *self) {
 }
 
 u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func) {
-    u32 tmp = pci_readl(parent->primary, dev, func,
-                             offsetof(struct pci_common_hdr, vendid));
-
-    if (tmp == 0xffffffff)
-        return 0;
-
+    int ret = 0;
     struct pci_dev *pci_dev = kmalloc(sizeof(*pci_dev));
+    if (!pci_dev) {
+        ret = 1;
+        goto go_and_free;
+    }
 
-    u8 htype = pci_readb(parent->primary, dev, func,
-                              offsetof(struct pci_hdr, common.htype));
+    pci_dev->_bus = parent->primary;
+    pci_dev->_slot = dev;
+    pci_dev->_fn = func;
+
+    pci_dev->readb = pci_readb;
+    pci_dev->readw = pci_readw;
+    pci_dev->readl = pci_readl;
+    pci_dev->writeb = pci_writeb;
+    pci_dev->writew = pci_writew;
+    pci_dev->writel = pci_writel;
+
+    pci_dev->disable_bios_handle = pci_dev_disable_bios;
+    pci_dev->enable_busmastering = pci_dev_enable_busmastering;
+    pci_dev->get_intline = pci_dev_get_intline;
+    pci_dev->get_base_memory = pci_get_bar;
+    pci_dev->get_base_memory_size = pci_get_bar_size;
+
+    u32 tmp = pci_dev->readl(pci_dev, offsetof(struct pci_common_hdr, vendid));
+
+    if (tmp == 0xffffffff) {
+        ret = 2;
+        goto go_and_free;
+    }
+
+    u8 htype = pci_dev->header_type = pci_dev->readb(pci_dev, offsetof(struct pci_hdr, common.htype));
 
     pci_dev->bus     = parent;
     pci_dev->devfn   = (dev << 3) | (func & 7);
-    pci_dev->class   = pci_readb(parent->primary, dev, func,
-                                 offsetof(struct pci_hdr, common.clas));
+
+    pci_dev->class   = pci_dev->readb(pci_dev, offsetof(struct pci_hdr, common.clas));
     pci_dev->device  = tmp >> 16;
     pci_dev->vendor  = tmp & 0xffff;
     pci_dev->sibling = NULL;
@@ -198,7 +232,7 @@ u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func) {
 
     if (parent->devices == NULL) {
         parent->devices = pci_dev;
-        return 0;
+        return ret;
     }
 
     struct pci_dev *endpoint = parent->devices;
@@ -206,18 +240,29 @@ u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func) {
         endpoint = endpoint->sibling;
 
     endpoint->sibling = pci_dev;
-    return 0;
+    return ret;
+
+go_and_free:
+    kfree(pci_dev);
+    return ret;
 }
 
 void enumerate_pcibus(struct pci_bus *bus) {
+    struct pci_dev pci_dev;
+    pci_dev._bus = bus->primary;
+
     for (u8 device = 0; device < 32; device++) {
+        pci_dev._slot = device;
         for (u8 fn = 0; fn < 8; fn++) {
-            u8 htype = pci_readb(bus->primary, device, fn,
-                                      offsetof(struct pci_hdr, common.htype));
+            pci_dev._fn = fn;
+
+            u8 htype = pci_readb(&pci_dev, offsetof(struct pci_hdr, common.htype));
             if (htype == 0xff)
                 break;
 
-            enumerate_pcidev(bus, device, fn);
+            if (enumerate_pcidev(bus, device, fn) == 1) {
+                printf("Failed to allocate memory for PCI device: %02x:%02x.%d", bus->primary, device, fn);
+            }
 
             if (!(htype & 0x80))
                 break;
@@ -260,8 +305,8 @@ static void walk_buses(struct pci_bus *start, void (*cb)(struct pci_dev *)) {
 
 static void lspci_cb(struct pci_dev *dev) {
     #ifdef DEBUG
-        u8 subclass = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.subclass));
-        u8 progif = pci_readb(dev->bus->primary, PCI_DEV(dev->devfn), PCI_FN(dev->devfn), offsetof(struct pci_hdr, common.prog_if));
+        u8 subclass = dev->readb(dev, offsetof(struct pci_hdr, common.subclass));
+        u8 progif = dev->readb(dev, offsetof(struct pci_hdr, common.prog_if));
 
         if (subclass == 0x3) {
             printf("%02x:%02x.%d %s (%s) (Subclass: 0x%X, ProgIF: 0x%X)\n",
@@ -297,9 +342,10 @@ static void pci_filter(struct pci_dev *dev) {
     u8 bus  = dev->bus->primary;
     u8 slot = PCI_DEV(dev->devfn);
     u8 fn   = PCI_FN(dev->devfn);
-    u8 subclass = pci_readb(bus, slot, fn,
-                            offsetof(struct pci_hdr, common.subclass));
-    u8 progif = pci_readb(bus, slot, fn, offsetof(struct pci_hdr, common.prog_if));
+
+    u8 subclass = dev->readb(dev, offsetof(struct pci_hdr, common.subclass));
+    u8 progif = dev->readb(dev, offsetof(struct pci_hdr, common.prog_if));
+
     const char *vendor;
     const char *model;
 
@@ -319,13 +365,13 @@ static void pci_filter(struct pci_dev *dev) {
                         bus, slot, fn, dev->vendor, dev->device, subclass);
             #endif
             if (dev->vendor == 0x8086 && dev->device == 0x100E)
-                e1000_init(bus, slot, fn);
+                e1000_init(dev);
             break;
         case PCI_CLASS_SBC:
             if (subclass != 0x3) break;
 
-            pci_dev_disable_bios(dev);
-            pci_dev_enable_busmastering(dev);
+            dev->enable_busmastering(dev);
+            dev->disable_bios_handle(dev);
 
             switch (progif) {
                 case 0x0: // UHCI
@@ -349,7 +395,7 @@ static void pci_filter(struct pci_dev *dev) {
                     printf("  [%02x:%02x.%d] IDE Controller\n",
                         bus, slot, fn);
                 #endif
-
+                
                 ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
             }
             break;

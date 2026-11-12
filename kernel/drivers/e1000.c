@@ -4,8 +4,11 @@
 #include <mem/paging.h>
 #include <mem/physical_mem.h>
 #include <sys/std.h>
-#include "drivers/vga.h"
-#include "terminal/printf.h"
+#include <drivers/vga.h>
+#include <terminal/printf.h>
+#include <drivers/pit.h>
+
+#define E1000_BAR 0
 
 static volatile u32 *mmio_base = NULL;
 static u8 mac[6];
@@ -111,31 +114,38 @@ static void e1000_irq_handler(registers_t *regs) {
     }
 }
 
-bool e1000_init(u8 bus, u8 slot, u8 func) {
-    u32 bar0 = pci_readl(bus, slot, func, 0x10) & ~0xFu;
+int e1000_init(struct pci_dev* dev) {
+    u32 bar0 = dev->get_base_memory(dev, E1000_BAR);
 
     set_printf_color(VGA_COLOR_LIGHT_RED);
     if (!bar0) {
         printf("e1000: BAR0 is zero\n");
-        return false;
+        return -PCI_ERRNO_BAR;
     }
+    if (bar0 & 1) {
+        printf("e1000: BAR0 is a I/O space BAR. Unsupported\n");
+        return -PCI_ERRNO_BAR;
+    }
+    bar0 &= 0xFFFFFFF0; // Get the address
 
-    u64 virt = mmio_map((u64)bar0, 0x20000); // TODO: Get the bar size
+    u64 virt = mmio_map((u64)bar0, dev->get_base_memory_size(dev, E1000_BAR));
     if (!virt) {
         printf("e1000: mmio_map failed\n");
-        return false;
+        return -PCI_ERRNO_MEM;
     }
     mmio_base = (volatile u32 *)virt;
 
-    u16 cmd = pci_readw(bus, slot, func, 0x04);
-    pci_writew(bus, slot, func, 0x04, cmd | (1u << 1) | (1u << 2));
+    u16 cmd = dev->readw(dev, 0x04);
+    dev->writew(dev, 0x04, cmd | (1u << 1) | (1u << 2));
 
     /* reset */
     e1000_write(E1000_CTRL, e1000_read(E1000_CTRL) | E1000_CTRL_RST);
-    for (volatile int i = 0; i < 100000; i++);
-    if (e1000_read(E1000_CTRL) & E1000_CTRL_RST) {
+
+    int timeout = 200;
+    while (e1000_read(E1000_CTRL) & E1000_CTRL_RST && --timeout) pit_timer_wait_ms(1);
+    if (!timeout) {
         printf("e1000: reset timed out\n");
-        return false;
+        return -PCI_ERRNO_TIMEOUT;
     }
 
     e1000_write(E1000_CTRL, e1000_read(E1000_CTRL) | E1000_CTRL_SLU | E1000_CTRL_ASDE);
@@ -151,7 +161,7 @@ bool e1000_init(u8 bus, u8 slot, u8 func) {
 
     if (!rx_descs_phys || !tx_descs_phys || !rx_bufs_phys || !tx_buf_phys) {
         printf("e1000: failed to allocate DMA buffers\n");
-        return false;
+        return -PCI_ERRNO_DMA;
     }
 
     /* First 16 MB is identity-mapped, so virt == phys */
@@ -188,16 +198,15 @@ bool e1000_init(u8 bus, u8 slot, u8 func) {
         E1000_ICR_LSC  |
         E1000_ICR_RXO);
 
-    u8 irq_line = pci_readb(bus, slot, func, 0x3C);
-    irq_install_handler(irq_line, e1000_irq_handler,0x9);
+    irq_install_handler(dev->get_intline(dev), e1000_irq_handler, 0x9);
 
     #ifdef DEBUG
-        printf("  e1000: init done, IRQ %d\n", irq_line);
+        printf("  e1000: init done\n");
     #endif
 
     set_printf_color(VGA_COLOR_WHITE);
 
-    return true;
+    return 0;
 }
 
 int e1000_send(const void *data, u16 len) {

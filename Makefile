@@ -45,21 +45,12 @@ grub-iso: kernel.elf
 	grub-mkrescue -o gecko.iso $(ISODIR) --locale-directory=/usr/share/locale
 	@echo "gecko.iso built. Boot with:  make run-grub"
 
-run-grub: gecko.iso
-	qemu-system-x86_64 -cdrom gecko.iso -boot order=d \
-	  -netdev user,id=net0 \
-	  -device e1000,netdev=net0
-
 fat32.img:
 	dd if=/dev/zero of=fat32.img bs=1M count=32
 	mkfs.fat -F 32 -n "GECKOOS" fat32.img
 	@echo "fat32.img created."
 
-Elffile:
-	$(MAKE) -C Assets/Elf\ for\ testing
-	mv Assets/Elf\ for\ testing/Elf .
-
-run-fat32: gecko.iso fat32.img # I dont want to make a new .img
+run-fat32: gecko.iso fat32.img
 	qemu-system-x86_64 \
 	  -cdrom gecko.iso \
 	  -drive format=raw,file=fat32.img \
@@ -68,6 +59,8 @@ run-fat32: gecko.iso fat32.img # I dont want to make a new .img
 	  -device e1000,netdev=net0 \
 	  -monitor stdio
 
+
+# Debug only
 run-uhci: gecko.iso fat32.img
 	qemu-system-x86_64 \
 	  -cdrom gecko.iso \

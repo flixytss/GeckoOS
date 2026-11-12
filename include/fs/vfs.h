@@ -80,8 +80,8 @@ struct dentry {
 struct vfs_inode* vfs_inode_find(struct vfs_filesystem* fs, u64 ino);
 struct vfs_inode* vfs_inode_create(struct vfs_filesystem* fs, u64 ino);
 
-void vfs_add_fs(struct drive_fs_t* fs);
-void vfs_add_vfs(struct vfs_filesystem* vfs);
+int vfs_add_fs(struct drive_fs_t* fs);
+int vfs_add_vfs(struct vfs_filesystem* vfs);
 
 void vfs_fat32_init();
 void vfs_devfs_init();
