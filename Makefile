@@ -82,7 +82,7 @@ run-ehci: gecko.iso fat32.img
 	  -monitor stdio \
 	  -device usb-ehci,id=ehci -device usb-kbd,bus=ehci.0,id=keyboard
 
-run-sata: fat32.img
+run-sata: gecko.iso fat32.img
 	qemu-system-x86_64 \
 	  -cdrom gecko.iso \
 	  -boot order=d \
@@ -90,15 +90,6 @@ run-sata: fat32.img
 	  -device e1000,netdev=net0 \
 	  -monitor stdio \
 	  -drive id=disk,file=fat32.img,if=none -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0
-
-run-ide: fat32.img
-	qemu-system-x86_64 -machine pc \
-	  -cdrom gecko.iso \
-	  -boot order=d \
-	  -netdev user,id=net0 \
-	  -device e1000,netdev=net0 \
-	  -monitor stdio \
-	  -drive id=disk,file=fat32.img,if=ide,format=raw
 
 VBOXCreateMachine:
 	VBoxManage createvm --name "GECKOOS" --ostype "Other_64" --register

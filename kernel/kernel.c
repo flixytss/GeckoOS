@@ -64,7 +64,6 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
     }
 
     has_apic = cpu_has_apic();
-
     global_acpi = acpi_init();
 
     init_idt();
@@ -81,13 +80,20 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
         start_pit_timer(PITHZ);
         lapic_timer_start();
         lapic_start_cores();
-        acpi_enable(global_acpi); // Takes 3 seconds
-    }
 
-    printc("Enabling some drivers\n", VGA_COLOR_LIGHT_GREY);
+        #ifdef DEBUG
+            #ifdef ACPI_ENABLED
+                printc("Enabling ACPI\n", VGA_COLOR_LIGHT_GREY);
+
+                acpi_enable(global_acpi); // Takes 3 seconds
+                acpi_aml_init(global_acpi);
+            #endif
+        #endif
+    }
 
     register_interrupt_handler(INT_PAGEFAULT, page_fault);
     register_interrupt_handler(INT_INVINS, ud_exception_handler);
+    
     for (int i = 0; i < (sizeof(drivers) / sizeof(drivers[0])); i++) drivers[i]();
     if (has_ps2mouse_support) mouse_init();
 
@@ -134,8 +140,6 @@ void kmain() {
     vfs_mkdir_path("/dev");
     vfs_mount("/dev", get_vfs_(2));
 
-    acpi_aml_init(global_acpi);
-
     // Adds every partition to its own directory
     struct kdrive_t* drive = get_kdrive(0);
     for (int i = 0; i < drive->partitions.count; i++) {
@@ -146,6 +150,8 @@ void kmain() {
         vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
     }
     
+    
+
     while (1) {
         printc("gecko> ", PROMPT_COLOR);
         unsigned char buff[512];

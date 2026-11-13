@@ -128,7 +128,7 @@ bool vmm_init(void)
     return vmm_set_pml4(pml4);
 }
 
-u64 mmio_map(u64 phys, u64 size)
+u64 mmio_map(u64 phys, u64 size) // Returns a virtual address
 {
     page_table_t *pml4 = vmm_get_pml4();
     if (!pml4) return 0;

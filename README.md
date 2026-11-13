@@ -54,7 +54,14 @@ sudo apt install clang nasm binutils grub-common xorriso qemu-system-x86 mtools 
 
 ### Build and run
 
+#### Compiling flags
+
+- DEBUG - This enabled the debug mode (A lot more debugging text)
+- ACPI_ENABLED - This enables the ACPI. This is disabled by default because enabling ACPI dosen't have a real use for now
+
 Note: The DEBUG mode is activated by default in the "test" branch
+
+#### Compiling
 
 **Step 1 — Create the FAT32 data disk:**
 ```bash

@@ -13,6 +13,16 @@
 
 struct acpi* global_acpi;
 
+// Helper
+u8 verify_checksum(struct acpi_header* header) {
+    u8 sum = 0;
+
+    for (int i = 0; i < header->length; i++)
+        sum += ((u8*)header)[i];
+
+    return sum == 0;
+}
+
 void *find_rsdp()
 {
     extern struct multiboot2_tag_acpi* acpi_info_grub;
@@ -197,14 +207,15 @@ static int parse_madt_entries(struct acpi* acpi)
 // mbi_addr including lapic and ioapic
 struct acpi* acpi_init()
 {
+    struct acpi_madt *madt = NULL;
+    struct acpi_rsdp_v2 *rsdp_v2;
+    struct acpi_header *rsdt_header;
     struct acpi* acpi = kmalloc(sizeof(*acpi));
     if (!acpi) return NULL;
-
-    struct acpi_madt *madt = NULL;
     memset(acpi, 0, sizeof(*acpi));
 
-    struct acpi_rsdp_v1 *rsdp = (struct acpi_rsdp_v1 *)find_rsdp();
 
+    struct acpi_rsdp_v1 *rsdp = (struct acpi_rsdp_v1 *)find_rsdp();
     if (!rsdp) {
         set_printf_color(VGA_COLOR_RED);
             printf("FAIL: No RSDP found\n");
@@ -213,113 +224,118 @@ struct acpi* acpi_init()
     }
 
     // Try XSDT first v2 if revision exists
-    if (rsdp->revision >= 2) {
-        struct acpi_rsdp_v2 *rsdp_v2 = (struct acpi_rsdp_v2 *)rsdp;
-        if (rsdp_v2->xsdt_addr != 0) {
-            // Map XSDT header
-            struct acpi_header *xsdt_header = (struct acpi_header *)mmio_map(
-                rsdp_v2->xsdt_addr, sizeof(struct acpi_header));
-            if (!xsdt_header) {
-                set_printf_color(VGA_COLOR_RED);
-                    printf("FAIL: Could not map XSDT header\n");
-                set_printf_color(VGA_COLOR_WHITE);
-            } else {
-                if (*(u32*)xsdt_header->signature == 0x54445358) {
-                    // Map full XSDT
-                    struct acpi_header *xsdt = (struct acpi_header *)mmio_map(
-                        rsdp_v2->xsdt_addr, xsdt_header->length);
-                    if (xsdt) {
-                        int count =
-                            (xsdt->length - sizeof(struct acpi_header)) / 8;
-
-                        u64 *entries =
-                            (u64 *)((u8 *)xsdt +
-                                         sizeof(struct acpi_header));
-                        for (int i = 0; i < count; i++) {
-
-                            // Map just the header of each table
-                            struct acpi_header *hdr =
-                                (struct acpi_header *)mmio_map(
-                                    entries[i], sizeof(struct acpi_header));
-                            if (!hdr) {
-                                set_printf_color(VGA_COLOR_RED);
-                                    printf("FAIL: Could notmap header\n");
-                                set_printf_color(VGA_COLOR_WHITE);
-                                continue;
-                            }
-                            u32 length = hdr->length;
-                            switch (*(u32*)hdr->signature) {
-                                case 0x43495041: // MADT
-                                    mmio_unmap((uintptr_t)hdr,
-                                           sizeof(struct acpi_header));
-                                    // Map full MADT
-                                    madt = (struct acpi_madt *)mmio_map(
-                                        entries[i], length);
-                                    break;
-                                case 0x50434141: // FADT
-                                    mmio_unmap((uintptr_t)hdr,
-                                           sizeof(struct acpi_header));
-                                    // Map full FADT
-                                    acpi->fadt = (acpi_fadt_t *)mmio_map(
-                                        entries[i], length);
-                                    break;
-                                default:
-                                    break;
-                            }
-
-                            // Headers are only mapped not unmapped memory
-                            // deallocation is for losers
-                        }
-                    }
-                } else {
-                    set_printf_color(VGA_COLOR_RED);
-                        printf("Invalid XSDT signature\n");
-                    set_printf_color(VGA_COLOR_WHITE);
-                }
-            }
-        }
-    }
-
+    if (rsdp->revision >= 2)
+        goto revision2;
     // Try RSDT fallback
-    if (!madt && rsdp->rsdt_addr != 0) {
-        struct acpi_header *rsdt_header = (struct acpi_header *)mmio_map(
-            rsdp->rsdt_addr, sizeof(struct acpi_header));
+    if (rsdp->rsdt_addr != 0)
+        goto revision1;
 
-        if (rsdt_header) {
-            if (*(u32*)rsdt_header->signature == 0x54445352) {
-                struct acpi_header *rsdt = (struct acpi_header *)mmio_map(
-                    rsdp->rsdt_addr, rsdt_header->length);
-                if (rsdt) {
-                    int count = (rsdt->length - sizeof(struct acpi_header)) / 4;
+revision2:
+    rsdp_v2 = (struct acpi_rsdp_v2 *)rsdp;
+    if (rsdp_v2->xsdt_addr != 0) {
+        // Map XSDT header
+        struct acpi_header *xsdt_header = (struct acpi_header *)mmio_map(
+            rsdp_v2->xsdt_addr, sizeof(struct acpi_header));
 
-                    u32 *entries =
-                        (u32 *)((u8 *)rsdt +
-                                     sizeof(struct acpi_header));
+        if (!xsdt_header || !verify_checksum(xsdt_header)) {
+            set_printf_color(VGA_COLOR_RED);
+                printf("FAIL: Could not map XSDT header\n");
+            set_printf_color(VGA_COLOR_WHITE);
+        } else {
+            if (*(u32*)xsdt_header->signature == 0x54445358) {
+                // Map full XSDT
+                struct acpi_header *xsdt = (struct acpi_header *)mmio_map(
+                    rsdp_v2->xsdt_addr, xsdt_header->length);
+                if (xsdt) {
+                    int count =
+                        (xsdt->length - sizeof(struct acpi_header)) / 8;
 
+                    u64 *entries =
+                        (u64 *)((u8 *)xsdt +
+                                    sizeof(struct acpi_header));
                     for (int i = 0; i < count; i++) {
+
+                        // Map just the header of each table
                         struct acpi_header *hdr =
                             (struct acpi_header *)mmio_map(
                                 entries[i], sizeof(struct acpi_header));
-                        if (!hdr)
+                        if (!hdr || !verify_checksum(hdr)) {
+                            set_printf_color(VGA_COLOR_RED);
+                                printf("FAIL: Could notmap header\n");
+                            set_printf_color(VGA_COLOR_WHITE);
                             continue;
+                        }
+                        u32 length = hdr->length;
                         switch (*(u32*)hdr->signature) {
                             case 0x43495041: // MADT
+                                mmio_unmap((uintptr_t)hdr,
+                                    sizeof(struct acpi_header));
+                                // Map full MADT
                                 madt = (struct acpi_madt *)mmio_map(
-                                    entries[i], hdr->length);
+                                    entries[i], length);
                                 break;
-                            case 0x50434146: // FADT
+                            case 0x50434141: // FADT
+                                mmio_unmap((uintptr_t)hdr,
+                                    sizeof(struct acpi_header));
+                                // Map full FADT
                                 acpi->fadt = (acpi_fadt_t *)mmio_map(
-                                    entries[i], hdr->length);
+                                    entries[i], length);
                                 break;
                             default:
                                 break;
                         }
+
+                        // Headers are only mapped not unmapped memory
+                        // deallocation is for losers
+                    }
+                }
+            } else {
+                set_printf_color(VGA_COLOR_RED);
+                    printf("Invalid XSDT signature\n");
+                set_printf_color(VGA_COLOR_WHITE);
+            }
+        }
+    }
+
+    goto end;
+revision1:
+    rsdt_header = (struct acpi_header *)mmio_map(
+        rsdp->rsdt_addr, sizeof(struct acpi_header));
+
+    if (rsdt_header) {
+        if (*(u32*)rsdt_header->signature == 0x54445352) {
+            struct acpi_header *rsdt = (struct acpi_header *)mmio_map(
+                rsdp->rsdt_addr, rsdt_header->length);
+            if (rsdt) {
+                int count = (rsdt->length - sizeof(struct acpi_header)) / 4;
+
+                u32 *entries =
+                    (u32 *)((u8 *)rsdt +
+                                    sizeof(struct acpi_header));
+
+                for (int i = 0; i < count; i++) {
+                    struct acpi_header *hdr =
+                        (struct acpi_header *)mmio_map(
+                            entries[i], sizeof(struct acpi_header));
+                    if (!hdr)
+                        continue;
+                    switch (*(u32*)hdr->signature) {
+                        case 0x43495041: // MADT
+                            madt = (struct acpi_madt *)mmio_map(
+                                entries[i], hdr->length);
+                            break;
+                        case 0x50434146: // FADT
+                            acpi->fadt = (acpi_fadt_t *)mmio_map(
+                                entries[i], hdr->length);
+                            break;
+                        default:
+                            break;
                     }
                 }
             }
         }
     }
-
+end:
     if (!madt) {
         set_printf_color(VGA_COLOR_LIGHT_RED);
             printf("\nFAIL: MADT not found in any table\n");

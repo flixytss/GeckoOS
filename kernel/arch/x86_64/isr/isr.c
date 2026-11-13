@@ -53,6 +53,6 @@ void isr_handler(registers_t *regs) {
         char check = regs->int_no > 21;
         printf("INTERRUPTION int_no=%d err_code=%d %s\n", regs->int_no, regs->err_code,
             check > 21 ? "" : interrupt_string_table[regs->int_no]);
-        if (regs->int_no == 13) for(;;);
+        // if (regs->int_no == 13) for(;;);
     }
 }

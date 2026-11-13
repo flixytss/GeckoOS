@@ -1,3 +1,4 @@
+#include "fs/fs.h"
 #include "fs/vfs.h"
 #include "fs/types/fat32.h"
 #include "sys/errno.h"
@@ -45,5 +46,17 @@ int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode
         return 0;
     }
 
+    kfree(entries.entries);
     return -ENOENT;
+}
+
+struct vfs_dir* fat32_vfs_opendir(struct vfs_inode* inode) {
+    struct vfs_dir* dir = kmalloc(sizeof(struct vfs_dir));
+
+    u32 son_cluster = fat32_next_cluster(((struct drive_fs_t*)inode->fs->reserved)->drive, ((struct drive_file_t*)inode->reserved)->userdata1, inode->ino);
+
+    dir->inode = inode;
+    dir->current = vfs_inode_create(inode->fs, son_cluster);
+
+    return dir;
 }
