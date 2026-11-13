@@ -1,4 +1,5 @@
 # Makefile to make and run with QEMU. //ember2819
+
 CC      = clang
 CPP     = clang++
 AS      = nasm
@@ -10,7 +11,7 @@ CC_FLAGS = -target x86_64-elf -march=x86-64 -m64 -MMD -MP \
            -ffreestanding -nostdlib -fno-builtin -fno-stack-protector \
            -mno-red-zone -mcmodel=kernel \
            -mno-sse -mno-sse2 -mno-avx \
-           -g -c $(addprefix -I,$(include_folder)) -DDEBUG
+           -g -c $(addprefix -I,$(include_folder))
 LD_FLAGS = -m elf_x86_64
 
 SOURCES := $(shell find ./kernel -name "*.c" -o -name "*.cpp" -o -name "*.s")
@@ -58,38 +59,6 @@ run-fat32: gecko.iso fat32.img
 	  -netdev user,id=net0 \
 	  -device e1000,netdev=net0 \
 	  -monitor stdio
-
-
-# Debug only
-run-uhci: gecko.iso fat32.img
-	qemu-system-x86_64 \
-	  -cdrom gecko.iso \
-	  -drive format=raw,file=fat32.img \
-	  -boot order=d \
-	  -netdev user,id=net0 \
-	  -device e1000,netdev=net0 \
-	  -monitor stdio \
-	  -device piix3-usb-uhci,id=uhci \
-	  -device usb-kbd,bus=uhci.0,id=keyboard
-
-run-ehci: gecko.iso fat32.img
-	qemu-system-x86_64 \
-	  -cdrom gecko.iso\
-	  -drive format=raw,file=fat32.img \
-	  -boot order=d \
-	  -netdev user,id=net0 \
-	  -device e1000,netdev=net0 \
-	  -monitor stdio \
-	  -device usb-ehci,id=ehci -device usb-kbd,bus=ehci.0,id=keyboard
-
-run-sata: gecko.iso fat32.img
-	qemu-system-x86_64 \
-	  -cdrom gecko.iso \
-	  -boot order=d \
-	  -netdev user,id=net0 \
-	  -device e1000,netdev=net0 \
-	  -monitor stdio \
-	  -drive id=disk,file=fat32.img,if=none -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0
 
 VBOXCreateMachine:
 	VBoxManage createvm --name "GECKOOS" --ostype "Other_64" --register

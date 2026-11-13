@@ -2,7 +2,6 @@
 #include <drivers/framebuffer.h>
 #include <drivers/ps2keyboard.h>
 #include <drivers/ps2mouse.h>
-#include <gk/gk.h>
 #include "sys/types.h"
 #include <terminal/terminal.h>
 #include <drivers/input.h>
@@ -81,44 +80,48 @@ static bool follow_output = true;
 
 void putchar(char c, u8 color)
 {
-    if (fb_cols == 0) {
+    if (fb_cols == 0)
         fb_update_dims();
-    }
 
     u32 fg = vga_fg_to_rgb(color);
     u32 bg = vga_bg_to_rgb(color);
 
-    if (c == 0) {
-        return;
-    }
+    switch (c) {
+        case '\n': {
+            /* Blank the rest of this history row so render_viewport is clean */
+            for (u32 k = cursor_x; k < fb_cols && k < VGA_TEXT_WIDTH; k++)
+                console_history[total_lines][k] = vga_entry(' ', color);
+            
+            cursor_x = 0;
+            total_lines++;
+            if (total_lines >= SCROLLBACK_LINES)
+                total_lines = SCROLLBACK_LINES - 1;
 
-    if (c == '\n') {
-        /* Blank the rest of this history row so render_viewport is clean */
-        for (u32 k = cursor_x; k < fb_cols && k < VGA_TEXT_WIDTH; k++) {
-            console_history[total_lines][k] = vga_entry(' ', color);
+            break;
         }
-        cursor_x = 0;
-        total_lines++;
-        if (total_lines >= SCROLLBACK_LINES)
-            total_lines = SCROLLBACK_LINES - 1;
-    } else if (c == '\b') {
-        if (cursor_x > 0) {
-            cursor_x--;
-        } else if (total_lines > 0) {
-            total_lines--;
-            cursor_x = (fb_cols < VGA_TEXT_WIDTH ? fb_cols : VGA_TEXT_WIDTH) - 1;
+        case '\b': {
+            if (cursor_x > 0) {
+                cursor_x--;
+            } else if (total_lines > 0) {
+                total_lines--;
+                cursor_x = (fb_cols < VGA_TEXT_WIDTH ? fb_cols : VGA_TEXT_WIDTH) - 1;
+            }
+            console_history[total_lines][cursor_x] = vga_entry(' ', color);
+
+            break;
         }
-        console_history[total_lines][cursor_x] = vga_entry(' ', color);
-    } else if (c == '\t') {
-        for (int j = 0; j < 4; j++) {
-            putchar(' ', color);
+        case '\t': {
+            for (int j = 0; j < TAB_SIZE; j++)
+                putchar(' ', color);
+
+            return;
         }
-        return;
-    } else {
-        if (cursor_x < VGA_TEXT_WIDTH) {
-            console_history[total_lines][cursor_x] = vga_entry(c, color);
+        default: {
+            if (cursor_x < VGA_TEXT_WIDTH)
+                console_history[total_lines][cursor_x] = vga_entry(c, color);
+            
+            cursor_x++;
         }
-        cursor_x++;
     }
 
     /* Word-wrap */
@@ -164,32 +167,11 @@ void putchar(char c, u8 color)
     terminal_column = cursor_x;
 }
 
-void write(char *data, size_t size, u8 COLOR)
-{
-    for (int i = 0; i < size; i++) {
-        putchar(data[i], COLOR);
-    }
-}
-
 void printc(char *data, u8 COLOR)
 {
     for (size_t i = 0; data[i]; i++) {
         putchar(data[i], COLOR);
     }
-}
-
-void print(char *data)
-{
-    for (size_t i = 0; data[i]; i++) {
-        putchar(data[i], VGA_COLOR_WHITE);
-    }
-}
-
-void print_int(int n)
-{
-    char buff[32];
-    int_to_str(n, buff);
-    print(buff);
 }
 
 void render_viewport()

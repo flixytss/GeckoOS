@@ -2,7 +2,7 @@
 // Renamed from comos_lexer.c to gk_lexer.c
 // Updated all ComoState/COMOS references to GkState/GK
 //ember2819 end
-#include <gk/gk.h>
+#include <gk_lang/gk.h>
 
 static bool is_digit(char c)  { return c >= '0' && c <= '9'; }
 static bool is_alpha(char c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'; }

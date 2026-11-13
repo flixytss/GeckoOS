@@ -14,7 +14,7 @@
 #include <drivers/serial.h>
 #include <layouts/kb_layouts.h>
 #include <terminal/terminal.h>
-#include <gk/gk.h>
+#include <gk_lang/gk.h>
 #include <mem/mmu.h>
 #include <sys/std.h>
 #include <fs/fs.h>
@@ -161,14 +161,8 @@ static void cmd_help(u8 color) {
             printc("\n", color);
         }
 
-        if (pages > 1) {
-            printc("\n", color);
-            printc("[Space: next page  Enter: exit]  Page ", VGA_COLOR_DARK_GREY);
-            print_int(page + 1);
-            printc("/", VGA_COLOR_DARK_GREY);
-            print_int(pages);
-            printc("\n", color);
-        }
+        if (pages > 1)
+            printf("\n[Space: next page  Enter: exit]  Page %d/%d\n", page + 1, pages);
 
         while (1) {
             scancode_t sc = get_scancode();
@@ -251,28 +245,24 @@ static void cmd_chars(u8 color) {
 }
 
 static void cmd_sleep5(u8 color) {
-    print("\nSleeping for 5 seconds...\n");
+    printf("\nSleeping for 5 seconds...\n");
     pit_timer_wait_s(5);
-    print("Done!\n");
+    printf("Done!\n");
 }
 
 static void cmd_reboot(u8 color) {
-    print("\nRebooting...");
+    printf("\nRebooting...");
     printf("There isn't a function to reboot yet\n");
     printf("Please imagine that we rebooted it\n");
 }
 
 static void cmd_print_ticks(u8 color) {
-    print("\nLapic tick: ");
-    print_int(lapic_timer_tick);
-    print("\n");
-    print("PIT tick: ");
-    print_int(pit_timer);
-    print("\n");
+    printf("\nLapic tick: %llu\n", lapic_timer_tick);
+    printf("PIT tick: %llu\n", pit_timer);
 }
 
 static void cmd_fsmount(u8 color) {
-    putchar('\n', color);
+    printc("\n", color);
     for (int i = 1; i < 6; i++) {
         printf("Trying drive %d", i);
         if (fsmount(i)) break;
@@ -282,7 +272,7 @@ static void cmd_fsmount(u8 color) {
 static void cmd_ls(u8 color) {
     struct fs_entries_t entries;
     int i;
-    print("\n");
+    printc("\n", color);
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
     entries = fss[actual_fs]->root_dir.get_entries(&fss[actual_fs]->root_dir);
 
@@ -539,15 +529,7 @@ static void cmd_uptime(u8 color) {
     seconds %= 60;
     minutes %= 60;
 
-    printc("\nUptime: ", color);
-    print_int(hours);
-    printc("h ", color);
-    print_int(minutes);
-    printc("m ", color);
-    print_int(seconds);
-    printc("s  (", color);
-    print_int(ticks);
-    printc(" ticks)\n", color);
+    printf("\nUptime: %dh %dm %ds (%d ticks)\n", hours, minutes, seconds, ticks);
 }
 
 static void cmd_meminfo(u8 color) {
@@ -637,22 +619,15 @@ static u32 parse_ip(const char *str) {
     return IP(a, b, c, d);
 }
 
-static void print_ip(u32 ip) {
-    print_int((ip >> 24) & 0xFF);
-    printc(".", VGA_COLOR_LIGHT_GREY);
-    print_int((ip >> 16) & 0xFF);
-    printc(".", VGA_COLOR_LIGHT_GREY);
-    print_int((ip >> 8) & 0xFF);
-    printc(".", VGA_COLOR_LIGHT_GREY);
-    print_int(ip & 0xFF);
-}
+static void print_ip(u32 ip)
+    { printf("%d.%d.%d.%d", (ip >> 24) & 0xFF,(ip >> 16) & 0xFF, (ip >> 8) & 0xFF, (ip) & 0xFF); }
 
 static void process_rx_packets(void) {
     u8 buf[2048];
     u16 len;
-    while (e1000_receive(buf, &len) == 0) {
+
+    while (e1000_receive(buf, &len) == 0)
         net_handle_packet(buf, len);
-    }
 }
 
 static void cmd_ping(u8 color) {
@@ -751,13 +726,7 @@ static void cmd_ping(u8 color) {
     serial_puts("\n");
 
     printc("\n--- Ping Statistics ---\n", VGA_COLOR_LIGHT_CYAN);
-    printc("Sent: ", color);
-    print_int(sent);
-    printc(", Received: ", color);
-    print_int(received);
-    printc(", Lost: ", color);
-    print_int(sent - received);
-    printc("\n", color);
+    printf("Sent: %d, Received: %d, Lost: %d\n", sent, received, sent - received);
 }
 
 static void cmd_runelf(u8 color) {

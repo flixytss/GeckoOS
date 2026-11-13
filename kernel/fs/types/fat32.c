@@ -520,16 +520,17 @@ int fat32_mkdir(struct drive_fs_t *fs, u32 dir_cluster, const char *name)
 void fat32_print_info(struct drive_fs_t *fs, u8 color)
 {
     FAT32_Volume *v = (FAT32_Volume *)fs->userdata1;
+    
     printc("-- FAT32 Volume Info --\n", color);
-    printc("  Bytes/sector:      ", color); print_int(v->bpb.bytes_per_sector);    printc("\n", color);
-    printc("  Sectors/cluster:   ", color); print_int(v->bpb.sectors_per_cluster); printc("\n", color);
-    printc("  Reserved sectors:  ", color); print_int(v->bpb.reserved_sectors);    printc("\n", color);
-    printc("  FATs:              ", color); print_int(v->bpb.num_fats);             printc("\n", color);
-    printc("  Sectors/FAT:       ", color); print_int(v->sectors_per_fat);          printc("\n", color);
-    printc("  Root cluster:      ", color); print_int(v->root_cluster);             printc("\n", color);
-    printc("  Total sectors:     ", color); print_int(v->total_sectors);            printc("\n", color);
-    printc("  FAT LBA:           ", color); print_int(v->fat_lba);                  printc("\n", color);
-    printc("  Data area LBA:     ", color); print_int(v->data_lba);                 printc("\n", color);
+    printf("  Bytes/sector:      %d\n", v->bpb.bytes_per_sector);
+    printf("  Sectors/cluster:   %d\n", v->bpb.sectors_per_cluster);
+    printf("  Reserved sectors:  %d\n", v->bpb.reserved_sectors);
+    printf("  FATs:              %d\n", v->bpb.num_fats);
+    printf("  Sectors/FAT:       %d\n", v->sectors_per_fat);
+    printf("  Root cluster:      %d\n", v->root_cluster);
+    printf("  Total sectors:     %d\n", v->total_sectors);
+    printf("  FAT LBA:           %d\n", v->fat_lba);
+    printf("  Data area LBA:     %d\n", v->data_lba);
     printc("-----------------------\n", color);
 }
 

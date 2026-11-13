@@ -20,24 +20,13 @@
 #define HISTORY_SIZE 10
 static unsigned char history_entries[HISTORY_SIZE][512];
 
-#define SEVERITY_INFO          0
-#define SEVERITY_DEBUG_INFO    1
-#define SEVERITY_WARNING       2
-#define SEVERITY_DEBUG_WARNING 3
-#define SEVERITY_ERROR         4
-#define SEVERITY_DEBUG_ERROR   5
-#define SEVERITY_FATAL_ERROR   6
+#define TAB_SIZE 4
 
 void terminal_init();
 
 void putchar(char c, u8 COLOR);
 void write(char *data, size_t size, u8 COLOR);
 void printc(char *data, u8 COLOR);
-void print(char *data);
-void print_int(int n);
-void print_hex(u32 n);
-
-;
 
 #define SCROLLBACK_LINES 1000 /* 1000 * 128 cols * 2 bytes = 256KB in BSS */
 static u16 console_history[SCROLLBACK_LINES][VGA_TEXT_WIDTH]; //console history
@@ -68,7 +57,6 @@ typedef struct {
 } cursor_t;
 static float sensibility = 0.7;
 static cursor_t cursor   = {-1, -1, 0, 0};
-
 
 void add_to_history(void);
 

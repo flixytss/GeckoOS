@@ -1,6 +1,5 @@
 #include "boot/multiboot2.h"
 #include "drivers/acpi/acpi-driver.h"
-#include "drivers/acpi/acpi.h"
 #include "drivers/apic/lapic.h"
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
@@ -29,6 +28,11 @@
 #include <fs/vfs.h>
 #include <fs/types/devfs.h>
 #include <sys/errno.h>
+#ifdef DEBUG
+#   ifdef ACPI_ENABLED
+#       include "drivers/acpi/acpi.h"
+#   endif
+#endif
 
 #define GECKO_VERSION "26.03"
 
@@ -149,8 +153,6 @@ void kmain() {
         vfs_mkdir_path(path);
         vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
     }
-    
-    
 
     while (1) {
         printc("gecko> ", PROMPT_COLOR);
