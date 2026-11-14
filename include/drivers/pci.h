@@ -70,6 +70,7 @@ struct pci_dev {
     void (*writel)(struct pci_dev* dev, u32 reg, u32 buff);
 
     void (*enable_busmastering)(struct pci_dev* dev);
+    void (*enable_memory_space)(struct pci_dev* dev);
     void (*disable_bios_handle)(struct pci_dev* dev);
     u8   (*get_intline)(struct pci_dev* dev);
 
