@@ -1,5 +1,5 @@
 #include "drivers/pit.h"
-#include "ports.h"
+#include <gk/io.h>
 #include <arch/x86_64/irq.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
@@ -30,11 +30,11 @@ void pit_timer_wait_s(u64 s) {
     unsigned long eticks;
 
     eticks = pit_timer + (s * PITHZ);
-    while(pit_timer < eticks) HALT();
+    while(pit_timer < eticks) halt();
 }
 void pit_timer_wait_ms(u32 ms) {
     unsigned long eticks;
 
     eticks = pit_timer + ms;
-    while(pit_timer < eticks) HALT();
+    while(pit_timer < eticks) halt();
 }

@@ -5,6 +5,7 @@
 #include "sys/types.h"
 #include <terminal/terminal.h>
 #include <drivers/input.h>
+#include <drivers/serial.h>
 
 extern u64 g_fb_addr;
 extern u32 g_fb_width;
@@ -80,6 +81,10 @@ static bool follow_output = true;
 
 void putchar(char c, u8 color)
 {
+    #ifdef SERIAL_ENABLED
+        serial_putc(c);
+    #endif
+
     if (fb_cols == 0)
         fb_update_dims();
 

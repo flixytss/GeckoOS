@@ -8,7 +8,7 @@
 #include <arch/x86_64/irq.h>
 #include <drivers/vga.h>
 #include <layouts/kb_layouts.h>
-#include <ports.h>
+#include <gk/io.h>
 #include <terminal/terminal.h>
 // Layout map by scancodes.
 // Add layout via set_layout()

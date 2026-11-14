@@ -3,7 +3,7 @@
  */
 #include "boot/multiboot2.h"
 #include "drivers/vga.h"
-#include "ports.h"
+#include <gk/io.h>
 #include <sys/std.h>
 #include <mem/physical_mem.h>
 #include <stddef.h>

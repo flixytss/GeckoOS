@@ -1,4 +1,4 @@
-#include "ports.h"
+#include <gk/io.h>
 #include <boot/multiboot2.h>
 #include <drivers/framebuffer.h>
 #include <sys/types.h>
@@ -36,7 +36,7 @@ void multiboot2_main(u64 magic, u64 mbi_addr)
     int valid = (magic == MULTIBOOT2_BOOTLOADER_MAGIC);
 
     if (!valid)
-        for (;;) HALT();
+        for (;;) halt();
 
     multiboot2_info_header_t *mbi = (multiboot2_info_header_t *)(uintptr_t)mbi_addr;
     multiboot2_tag_t *tag = (multiboot2_tag_t *)((uintptr_t)mbi + sizeof(multiboot2_info_header_t));

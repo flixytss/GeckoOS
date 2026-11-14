@@ -5,7 +5,7 @@
 #include <drivers/pci.h>
 #include <drivers/e1000.h>
 #include <mem/mmu.h>
-#include <ports.h>
+#include <gk/io.h>
 #include <stddef.h>
 #include "sys/types.h"
 #include <terminal/printf.h>

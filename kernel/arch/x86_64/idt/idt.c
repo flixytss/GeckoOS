@@ -1,7 +1,7 @@
 #include <colors.h>
 #include <arch/x86_64/idt.h>
 #include <sys/std.h>
-#include <ports.h>
+#include <gk/io.h>
 #include <terminal/terminal.h>
 #include <arch/x86_64/irq.h>
 
@@ -73,5 +73,5 @@ void init_idt()
     idt_set_gate(31, (u64)isr31, 0x08, 0x8E);
 
     idt_flush((u64)&idt_ptr);
-    STI();
+    sti();
 }

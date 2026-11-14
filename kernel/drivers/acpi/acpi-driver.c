@@ -3,7 +3,7 @@
 #include "drivers/vga.h"
 #include "mem/mmu.h"
 #include "mem/paging.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "terminal/terminal.h"
 #include "sys/types.h"
 #include <string.h>
@@ -369,7 +369,7 @@ int acpi_enable(struct acpi* acpi) {
     outb(acpi->fadt->smiCommandPort, acpi->fadt->acpiEnable);
 
     pit_timer_wait_s(3);
-    while (!(inw(acpi->fadt->pm1aControlBlk) & 1)) HALT();
+    while (!(inw(acpi->fadt->pm1aControlBlk) & 1)) halt();
 
     // irq_install_handler(acpi->fadt->sciInterrupt, acpi_irq_handler, 0);
 

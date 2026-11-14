@@ -1,6 +1,6 @@
 #include "drivers/ps2.h"
 #include "drivers/pit.h"
-#include <ports.h>
+#include <gk/io.h>
 #include <stdbool.h>
 #include "sys/types.h"
 #include <terminal/printf.h>

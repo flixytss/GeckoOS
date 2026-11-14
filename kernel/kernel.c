@@ -5,7 +5,6 @@
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
 #include "mem/mmu.h"
-#include "ports.h"
 #include "terminal/printf.h"
 #include <colors.h>
 #include <commands.h>
@@ -33,6 +32,9 @@
 #       include "drivers/acpi/acpi.h"
 #   endif
 #endif
+#ifdef SERIAL_ENABLED
+#   include "drivers/serial.h"
+#endif
 
 #define GECKO_VERSION "26.03"
 
@@ -55,6 +57,9 @@ driver_init drivers[] = {
     pci_detect_controllers,
     net_init,
     arp_init,
+    #ifdef SERIAL_ENABLED
+        (void*)serial_init,
+    #endif
     keyboard_install
 };
 
@@ -64,7 +69,7 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
 
     if (!vmm_init()) {
         printc("Vmm_init failed -- halting\n", VGA_COLOR_RED);
-        for (;;) HALT();
+        for (;;) halt();
     }
 
     has_apic = cpu_has_apic();
@@ -74,12 +79,12 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
     irq_install();
 
     if (has_apic) {
-        CLI();
+        sti();
         if (lapic_init())
             printf("Setting up LAPIC failed.");
         
         ioapic_init();
-        STI();
+        sti();
 
         start_pit_timer(PITHZ);
         lapic_timer_start();

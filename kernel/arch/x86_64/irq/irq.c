@@ -3,7 +3,7 @@
 #include "drivers/apic/lapic.h"
 #include <arch/x86_64/idt.h>
 #include <arch/x86_64/isr.h>
-#include <ports.h>
+#include <gk/io.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
 #include <terminal/terminal.h>

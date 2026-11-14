@@ -3,7 +3,7 @@
 #include "arch/x86_64/irq.h"
 #include "mem/paging.h"
 #include "mem/physical_mem.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "sys/types.h"
 #include <terminal/printf.h>
 
@@ -94,7 +94,7 @@ void lapic_timer_wait(u64 ticks) {
     u64 eticks;
 
     eticks = lapic_timer_tick + ticks;
-    while (lapic_timer_tick < eticks) PAUSE();
+    while (lapic_timer_tick < eticks) pause();
 }
 // works finally
 void lapic_timer_handler(registers_t *_) {

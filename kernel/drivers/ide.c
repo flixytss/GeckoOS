@@ -1,7 +1,7 @@
 #include "drivers/drives.h"
 #include "drivers/pit.h"
 #include "mem/mmu.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "drivers/ide.h"
 #include "sys/types.h"
 #include "terminal/printf.h"
@@ -312,7 +312,7 @@ u8 ide_ata_access(u8 direction, u8 drive, u32 lba, u8 numsects, u16 selector, u3
     }
     dma = 0; // We don't support DMA
 
-    while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) HALT();
+    while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) halt();
 
     if (lba_mode == 0)
         ide_write(channel, ATA_REG_HDDEVSEL, 0xA0 | (slavebit << 4) | head); // Drive & CHS.
@@ -381,7 +381,7 @@ u8 ide_ata_access(u8 direction, u8 drive, u32 lba, u8 numsects, u16 selector, u3
 }
 
 void ide_wait_irq() {
-    while (!ide_irq_invoked) HALT();
+    while (!ide_irq_invoked) halt();
     ide_irq_invoked = 0;
 }
 void ide_irq() {
@@ -445,7 +445,7 @@ u8 ide_atapi_read(u8 drive, u32 lba, u8 numsects, u16 selector, u32 edi) {
     ide_wait_irq();
 
     // (XI): Waiting for BSY & DRQ to clear:
-    while (ide_read(channel, ATA_REG_STATUS) & (ATA_SR_BSY | ATA_SR_DRQ)) HALT();
+    while (ide_read(channel, ATA_REG_STATUS) & (ATA_SR_BSY | ATA_SR_DRQ)) halt();
 
     return 0; // Easy, ... Isn't it?
 }

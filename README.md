@@ -57,7 +57,8 @@ sudo apt install clang nasm binutils grub-common xorriso qemu-system-x86 mtools 
 #### Compiling flags
 
 - DEBUG - This enabled the debug mode (A lot more debugging text)
-- ACPI_ENABLED - This enables the ACPI. This is disabled by default because enabling ACPI dosen't have a real use for now
+- ACPI_ENABLED - This enables the ACPI (This flag has to be used with DEBUG mode). This is disabled by default because enabling ACPI dosen't have a real use for now
+- SERIAL_ENABLED - This enables the serial
 
 Note: The DEBUG mode is activated by default in the "test" branch
 
