@@ -54,8 +54,10 @@ void pci_writeb(struct pci_dev* dev, u32 off, u8 data) {
 
 static void pci_dev_disable_bios(struct pci_dev* dev)
     { pci_writew(dev, 0xC0, 0x2000); }
+static void pci_dev_enable_memory_space(struct pci_dev* dev)
+    { pci_writew(dev, 0x4, pci_readw(dev, 0x4) | (1 << 1)); }
 static void pci_dev_enable_busmastering(struct pci_dev* dev)
-    { pci_writew(dev, 0x4, 0x5); }
+    { pci_writew(dev, 0x4, pci_readw(dev, 0x4) | (1 << 2)); }
 static u32 pci_get_bar(struct pci_dev* dev, u8 index)
     { return dev->readl(dev, BAR0_OFF + (BAR_SIZE * index)); }
 static u8 pci_dev_get_intline(struct pci_dev* dev)
@@ -205,6 +207,7 @@ u8 enumerate_pcidev(struct pci_bus *parent, u8 dev, u8 func) {
 
     pci_dev->disable_bios_handle = pci_dev_disable_bios;
     pci_dev->enable_busmastering = pci_dev_enable_busmastering;
+    pci_dev->enable_memory_space = pci_dev_enable_memory_space;
     pci_dev->get_intline = pci_dev_get_intline;
     pci_dev->get_base_memory = pci_get_bar;
     pci_dev->get_base_memory_size = pci_get_bar_size;
@@ -364,8 +367,12 @@ static void pci_filter(struct pci_dev *dev) {
                     printf("  [%02x:%02x.%d] Unknown NIC (%04x:%04x, subclass %02x)\n",
                         bus, slot, fn, dev->vendor, dev->device, subclass);
             #endif
-            if (dev->vendor == 0x8086 && dev->device == 0x100E)
+            if (dev->vendor == 0x8086 && dev->device == 0x100E) {
+                dev->enable_busmastering(dev);
+                dev->enable_memory_space(dev);
+
                 e1000_init(dev);
+            }
             break;
         case PCI_CLASS_SBC:
             if (subclass != 0x3) break;

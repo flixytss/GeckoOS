@@ -135,9 +135,6 @@ int e1000_init(struct pci_dev* dev) {
     }
     mmio_base = (volatile u32 *)virt;
 
-    u16 cmd = dev->readw(dev, 0x04);
-    dev->writew(dev, 0x04, cmd | (1u << 1) | (1u << 2));
-
     /* reset */
     e1000_write(E1000_CTRL, e1000_read(E1000_CTRL) | E1000_CTRL_RST);
 
