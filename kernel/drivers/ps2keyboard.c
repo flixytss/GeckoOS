@@ -61,10 +61,10 @@ scancode_t ps2_kb_wfi()
         scancode_t ext = inb(PS2_DATA_PORT);
         if (ext & 0x80) return 0; // ignore extended key releases
         switch (ext) {
-            case 0x48: return KEY_UP;
-            case 0x50: return KEY_DOWN;
-            case 0x4B: return KEY_LEFT;
-            case 0x4D: return KEY_RIGHT;
+            case 0x48: return PS2_KEY_UP;
+            case 0x50: return PS2_KEY_DOWN;
+            case 0x4B: return PS2_KEY_LEFT;
+            case 0x4D: return PS2_KEY_RIGHT;
             default: break;
         }
         return 0;

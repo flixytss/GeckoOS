@@ -243,10 +243,10 @@ void editor_run(struct drive_fs_t *fs, const char *filename, u8 color) {
         if (is_break) { continue; }
 
         // Arrow keys — all four delivered as KEY_* by ps2_kb_wfi
-        if (sc == KEY_UP)    { ed_move_up();    ed_redraw(); continue; }
-        if (sc == KEY_DOWN)  { ed_move_down();  ed_redraw(); continue; }
-        if (sc == KEY_LEFT)  { ed_move_left();  ed_redraw(); continue; }
-        if (sc == KEY_RIGHT) { ed_move_right(); ed_redraw(); continue; }
+        if (sc == PS2_KEY_UP)    { ed_move_up();    ed_redraw(); continue; }
+        if (sc == PS2_KEY_DOWN)  { ed_move_down();  ed_redraw(); continue; }
+        if (sc == PS2_KEY_LEFT)  { ed_move_left();  ed_redraw(); continue; }
+        if (sc == PS2_KEY_RIGHT) { ed_move_right(); ed_redraw(); continue; }
 
         // Ctrl+S (scancode 0x1F = 's')
         if (ctrl_held && sc == 0x1F) { ed_save(fs); ed_redraw(); continue; }

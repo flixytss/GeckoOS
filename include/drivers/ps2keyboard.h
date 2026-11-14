@@ -20,11 +20,11 @@
 #define ENTER_SC 0x1C
 
 // Ember2819: arrow keys for command history
-#define KEY_UP    0x60
-#define KEY_DOWN  0x61
+#define PS2_KEY_UP    0x60
+#define PS2_KEY_DOWN  0x61
 // ember2819: left/right arrows for editor
-#define KEY_LEFT  0x62
-#define KEY_RIGHT 0x63
+#define PS2_KEY_LEFT  0x62
+#define PS2_KEY_RIGHT 0x63
 
 // Initialize PS/2 Keyboard
 void ps2_kb_init();
