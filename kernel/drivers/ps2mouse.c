@@ -4,7 +4,7 @@
 #include "drivers/ps2.h"
 #include "arch/x86_64/irq.h"
 #include "drivers/vga.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
 #include <sys/std.h>

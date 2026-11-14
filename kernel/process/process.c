@@ -4,7 +4,7 @@
 #include <sys/std.h>
 #include <mem/physical_mem.h>
 #include <mem/paging.h>
-#include <ports.h>
+#include <gk/io.h>
 #include "sys/types.h"
 #include <arch/x86_64/isr.h>
 #include <drivers/vga.h>
@@ -26,14 +26,14 @@ Queue *process_queue = NULL;
 
 int enqueue(Queue **q, Process *v)
 {
-    CLI();
+    sti();
     if (*q == NULL) {
         *q = kmalloc(sizeof(Queue));
-        if (*q == NULL) { STI(); return -1; }
+        if (*q == NULL) { sti(); return -1; }
         (*q)->head = 0;
         (*q)->tail = 0;
     }
-    STI();
+    sti();
 
     unsigned int next = ((*q)->tail + 1) & (MAX_PROCESSES - 1);
     if (next == (*q)->head) return -1;

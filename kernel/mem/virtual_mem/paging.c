@@ -1,5 +1,5 @@
 #include "arch/x86_64/isr.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "terminal/printf.h"
 #include "drivers/framebuffer.h"
 #include "sys/types.h"
@@ -186,5 +186,5 @@ void page_fault(registers_t* regs) {
     if (us) {printf("user-mode ");}
     if (reserved) {printf("reserved ");}
     printf(") at 0x%p\nHalting...", faulting_address);
-    for (;;) HALT();
+    for (;;) halt();
 } 

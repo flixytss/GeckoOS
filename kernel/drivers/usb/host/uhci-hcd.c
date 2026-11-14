@@ -16,7 +16,7 @@
 #include "drivers/pit.h"
 #include "mem/mmu.h"
 #include "sys/std.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "sys/types.h"
 #include "terminal/printf.h"
 #include "terminal/terminal.h"

@@ -696,34 +696,14 @@ static void cmd_ping(u8 color) {
 
         if (got_reply) {
             received++;
-            serial_puts("Reply from ");
-            serial_put_dec((target_ip >> 24) & 0xFF);
-            serial_putc('.');
-            serial_put_dec((target_ip >> 16) & 0xFF);
-            serial_putc('.');
-            serial_put_dec((target_ip >> 8) & 0xFF);
-            serial_putc('.');
-            serial_put_dec(target_ip & 0xFF);
-            serial_puts("\n");
             printc("Reply from ", VGA_COLOR_LIGHT_GREEN);
             print_ip(target_ip);
             printc("\n", color);
-        } else {
-            serial_puts("Request timed out\n");
+        } else
             printc("Request timed out\n", VGA_COLOR_RED);
-        }
 
         // timer_wait(50);
     }
-
-    serial_puts("\n--- Ping Statistics ---\n");
-    serial_puts("Sent: ");
-    serial_put_dec(sent);
-    serial_puts(", Received: ");
-    serial_put_dec(received);
-    serial_puts(", Lost: ");
-    serial_put_dec(sent - received);
-    serial_puts("\n");
 
     printc("\n--- Ping Statistics ---\n", VGA_COLOR_LIGHT_CYAN);
     printf("Sent: %d, Received: %d, Lost: %d\n", sent, received, sent - received);

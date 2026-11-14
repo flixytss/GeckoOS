@@ -1,6 +1,6 @@
 #include "drivers/acpi/acpi-driver.h"
 #include "mem/paging.h"
-#include "ports.h"
+#include <gk/io.h>
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
 
