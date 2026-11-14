@@ -2,4 +2,6 @@
 
 static int uhci_pci_init(struct pci_dev* dev) {
     // TODO: Complete this
+
+    return 0;
 }

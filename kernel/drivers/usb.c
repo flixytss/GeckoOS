@@ -32,6 +32,8 @@ int usb_get_string(struct usb_dev* device, struct usb_string_descriptor* string,
         .index = langid,
         .lenght = string->header.bLength
     }, string, false);
+
+    return 0;
 }
 
 int usb_get_configuration(struct usb_dev* device, u8 configuration_index) { // Put the configuration descriptor and all of its interfaces and endpoints inside the usb device struct
@@ -104,7 +106,7 @@ int usb_get_interface(struct usb_dev* device, u8 interface_index) {
 int usb_pipe_talk(struct usb_pipe* pipe, struct usb_setup_packet packet) {
     if (!pipe) return -EINVAL;
 
-
+    return 0;
 }
 
 int usb_set_address(struct usb_dev* dev, u8 address) {

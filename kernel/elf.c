@@ -56,7 +56,7 @@ static char* elf_lookup_string(Elf64_Ehdr* hdr, int offset) {
 }
 
 static Elf64_Sym* elf_lookup_symbol() {
-
+	return NULL;
 }
 
 static u64 elf_get_symval(Elf64_Ehdr* hdr, int table, u32 idx) {
@@ -69,15 +69,15 @@ static u64 elf_get_symval(Elf64_Ehdr* hdr, int table, u32 idx) {
 		return -1;
 	}
 
-	int symaddr = (int)hdr + symtab->sh_offset;
-	Elf64_Sym* symbol = &((Elf64_Sym*)symaddr)[idx];
+	int symaddr = (int)(size_t)hdr + symtab->sh_offset;
+	Elf64_Sym* symbol = &((Elf64_Sym*)(size_t)symaddr)[idx];
 
     if(symbol->st_shndx == SHN_UNDEF) {
         // External symbol, lookup value
         Elf64_Shdr* strtab = elf_section(hdr, symtab->sh_link);
         const char* name = (const char *)hdr + strtab->sh_offset + symbol->st_name;
 
-        void* target = elf_lookup_symbol(name);
+        void* target = elf_lookup_symbol( /* name */ );
 
         if (target == NULL) {
             // Extern symbol not found
@@ -118,7 +118,7 @@ void elf_load_stage1(Elf64_Ehdr* hdr) {
 				memset(m, 0, section->sh_size);
 
 				section->sh_offset = (u64)m - (u64)hdr;
-				printf("Allocated memory for a section (%ld).\n", section->sh_size);
+				printf("Allocated memory for a section (%llu).\n", section->sh_size);
 			}
 		}
 	}
@@ -154,7 +154,7 @@ int elf_do_reloc(Elf64_Ehdr* hdr, Elf64_Rel* rel, Elf64_Shdr* reltab) {
 	u64 addr = (u64)hdr + target->sh_offset;
 	int* ref = (int*)(addr + rel->r_offset);
 
-	int symval = 0;
+	u64 symval = 0;
 	if (ELF64_R_SYM(symval) != SHN_UNDEF) {
 		symval = elf_get_symval(hdr, reltab->sh_link, ELF64_R_SYM(rel->r_info));
 		if (symval == -1) return -1;
@@ -174,7 +174,7 @@ int elf_do_reloc(Elf64_Ehdr* hdr, Elf64_Rel* rel, Elf64_Shdr* reltab) {
 			break;
 		default:
 			// Relocation type not supported, display error and return
-			printf("Unsupported Relocation Type (%d).\n", ELF32_R_TYPE(rel->r_info));
+			printf("Unsupported Relocation Type (%llu).\n", ELF32_R_TYPE(rel->r_info));
 			return -1;
 	}
 	return symval;
@@ -206,7 +206,7 @@ void* elf_load_file(void* file) {
 			for (u32 i = 0; i < hdr->e_shnum; i++) {
 				Elf64_Shdr section = shdr[i];
 
-				printf("%s %d\n", elf_lookup_string(hdr, section.sh_name), section.sh_offset);
+				// printf("%s %d\n", elf_lookup_string(hdr, section.sh_name), section.sh_offset);
 				for (int i = 0; i < section.sh_size; i++) {
 					printf("%X ", *(u8*)(((u64)hdr + section.sh_offset) + i));
 				} printf("\n");

@@ -255,8 +255,8 @@ void input(unsigned char *buff, size_t buffer_size, u8 color)
         if (sc & 0x80)
             continue;
 
-        if (sc == KEY_UP || sc == KEY_DOWN) {
-            if (sc == KEY_UP && browse_idx == 0) {
+        if (sc == PS2_KEY_UP || sc == PS2_KEY_DOWN) {
+            if (sc == PS2_KEY_UP && browse_idx == 0) {
                 size_t k;
                 for (k = 0; k < buff_count; k++) {
                     saved_input[k] = buff[k];
@@ -264,9 +264,9 @@ void input(unsigned char *buff, size_t buffer_size, u8 color)
                 saved_input[k] = '\0';
             }
 
-            if (sc == KEY_UP && browse_idx < history_count)
+            if (sc == PS2_KEY_UP && browse_idx < history_count)
                 browse_idx++;
-            if (sc == KEY_DOWN && browse_idx > 0)
+            if (sc == PS2_KEY_DOWN && browse_idx > 0)
                 browse_idx--;
 
             unsigned char *src;
