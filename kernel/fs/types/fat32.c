@@ -197,7 +197,8 @@ static void fat32_dir_iterate(struct kdrive_t *drive, FAT32_Volume *pvol,
             if (drive->read((void*)drive, lba + s, 1, buf) < 0) return;
             FAT32_DirEntry *entries = (FAT32_DirEntry *)buf;
             for (u32 e = 0; e < entries_per_sector; e++) {
-                if (cb(&entries[e], lba + s, e, ctx)) return;
+                if (cb(&entries[e], lba + s, e, ctx))
+                    return;
             }
         }
         cluster = fat32_next_cluster(drive, pvol, cluster);
@@ -426,7 +427,7 @@ static int dir_search_cb(FAT32_DirEntry *e, u32 lba,
     return 0;
 }
 
-int fat32_create_file(struct drive_fs_t *fs, char *name,
+int fat32_create_file(struct drive_fs_t *fs, u32 dir_cluster, char *name,
                        const u8 *content, size_t len)
 {
     FAT32_Volume   *pvol  = (FAT32_Volume *)fs->userdata1;
@@ -438,7 +439,7 @@ int fat32_create_file(struct drive_fs_t *fs, char *name,
     memset(&ctx, 0, sizeof(ctx));
     ctx.find_free = 1;
 
-    fat32_dir_iterate(drive, pvol, pvol->root_cluster, tmp, dir_search_cb, &ctx);
+    fat32_dir_iterate(drive, pvol, dir_cluster, tmp, dir_search_cb, &ctx);
     if (!ctx.found) return -1; // root directory full
 
     // Allocate cluster chain for content

@@ -19,7 +19,7 @@ bool has_ps2mouse_support = false; // this means dual channel
 void ps2_clear_input_buffer_status() {
     u8 ps2_sts = inb(PS2_CMD_PORT);
     if (ps2_sts & (1 << 1)) // If the Input buffer status is set (full), clear it
-        outb(PS2_CMD_PORT, ps2_sts & ~(1 << 1));
+        outb(PS2_CMD_PORT, ps2_sts | 1);
     inb(PS2_DATA_PORT);
 }
 
@@ -58,7 +58,6 @@ void enable_ps2_configuration_bytes(u8 bytes) {
 
 u8 read_ps2_configuration_byte() {
     ps2_clear_input_buffer_status();
-
     outb(PS2_CMD_PORT, 0x20);
     return inb(PS2_DATA_PORT);
 }
@@ -106,10 +105,12 @@ u8 ps2_init() {
 
     disable_ps2_devices();
 
-    if (!(inb(PS2_CMD_PORT) & (1 << 2))) /* This bit is set, the bios didn't pass the POST */ {
-        printf("How are you here?\n");
-        return 0xFF;
-    }
+    #ifdef MISCELLANEOUS
+        if (!(inb(PS2_CMD_PORT) & (1 << 2))) /* This bit is set, the bios didn't pass the POST */ {
+            printf("How are you here?\n");
+            return 0xFF;
+        }
+    #endif
 
     inb(PS2_DATA_PORT); // Discard useless info
     disable_ps2_configuration_bytes((1 << 0) | (1 << 1) | (1 << 6) | (1 << 4)); // disable interruptions

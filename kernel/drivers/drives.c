@@ -71,6 +71,10 @@ static void load_parameters( struct kdrive_t *drive )
 };
 
 void register_kdrive(struct kdrive_t* drive) {
+    #ifdef DEBUG
+        dprintf("LOG: a new drive has been added; {name: \"%s\"}\n", drive->name);
+    #endif
+
 	int i;
 	for ( i = 0; i < 32; i++ ) {
 		if (drives[i]) continue;

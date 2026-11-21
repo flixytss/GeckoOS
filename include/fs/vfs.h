@@ -55,9 +55,9 @@ struct vfs_inode_ops {
     int     (*delete)(struct vfs_inode* inode);
     int     (*create)(struct vfs_inode* inode, const char* name);
 
-    int   (*opendir)(struct vfs_inode* inode, struct vfs_dir* dir);
-    int   (*readdir)(struct vfs_dir* dir, struct vfs_entry* entry);
-    int   (*closedir)(struct vfs_dir* dir);
+    struct vfs_dir* (*opendir)(struct vfs_inode* inode);
+    int             (*readdir)(struct vfs_dir* dir, struct vfs_entry* entry);
+    int             (*closedir)(struct vfs_dir* dir);
 };
 
 struct vfs_filesystem {
@@ -113,6 +113,9 @@ void vfs_close(struct vfs_file* file);
 
 int vfs_create(struct vfs_inode* inode, const char* name);
 int vfs_create_path(const char* path);
+
+struct vfs_dir* vfs_opendir(struct vfs_inode* inode);
+struct vfs_dir* vfs_opendir_path(const char* path);
 
 // VFS Options
 extern struct vfs_inode_ops* vfs_ops[4];

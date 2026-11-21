@@ -1,128 +1,91 @@
 #include "mem/mmu.h"
-#include "sys/std.h"
-#include "sys/limits.h"
 #include "terminal/printf.h"
 
-static void *heap_ptr = NULL;
-static void *heap_end = NULL;
-static block *free_list_head = NULL;
+static void *heap_ptr;
+static void *heap_end;
 
-#define BLOCK_BUFFER(x) ((u64)x + sizeof(block))
-#define BLOCK_BUFFER_METADATA(x) ((u64)x - sizeof(block))
+static header_t* head;
 
 void kalloc_init(u64 start, u64 size) {
     heap_ptr = (void*)start;
     heap_end = heap_ptr + size;
 
-    free_list_head = (block*)heap_ptr;
-    free_list_head->free = true;
-    free_list_head->size = size;
-    free_list_head->next = NULL;
-    free_list_head->magic = BLOCK_MAGIC;
+    head = (header_t*)heap_ptr;
+    head->size = size;
+    head->free = 1;
+    head->next = NULL;
+
+    #ifdef DEBUG
+        dprintf("OK : kalloc initialized with; {address: %p, size: %llub}\n", head, head->size);
+    #endif
 }
 
-// Divide the free_list_head into smaller blocks with the wanted size
-static block *create_block(size_t size, size_t alignment) {
-    if (!heap_ptr)
-        return NULL;
-
-    if (size == 0 || size > ULONG_LONG_MAX - sizeof(block) - alignment)
-        return NULL;
-
-    size = ALIGN(size + sizeof(block), alignment);
-
-    block *curl = free_list_head;
-
-    while (curl) {
-        if (curl->free && curl->size >= size) {
-            size_t leftover = curl->size - size;
-
-            if (leftover >= sizeof(block) + 16) {
-                block* new_free = (block *)(curl + size);
-
-                new_free->free = true;
-                new_free->size = leftover;
-                new_free->next = curl->next;
-
-                curl->next = new_free;
-                curl->size = size;
-                curl->magic = BLOCK_MAGIC;
-            }
-
-            curl->free = false;
-            return curl;
-        }
-
-        if (curl->free && curl->next && curl->next->free) {
-            if (curl->next->magic != BLOCK_MAGIC) continue;
-            curl->size += curl->next->size;
-            curl->next = curl->next->next;
-            continue;
-        }
-
-        curl = curl->next;
+static header_t* get_free_block(u64 size) {
+    for (header_t* cur = head; cur; cur = cur->next) {
+        if (cur->free && cur->size >= size)
+            return cur;
     }
-
-    return NULL; // Out of memory
+    return NULL;
 }
-
-
-void *kmalloc(unsigned long size) {
-    block* b = create_block(size, 4);
-
-    return b ? (void *)(BLOCK_BUFFER(b)) : NULL;
+ 
+static void split_block(header_t* block, u64 size) {
+    u64 spare = block->size - size;
+    if (spare < sizeof(header_t) + HEAP_ALIGN)
+        return;
+ 
+    header_t* rest = (header_t*)((char*)(block + 1) + size);
+    rest->size = spare - sizeof(header_t);
+    rest->free = 1;
+    rest->next = block->next;
+    block->next = rest;
+    block->size = size;
 }
-
-#if 0
-void* realloc(void* p, size_t size) { // DONT USE
-    if (!p) return NULL;
-    block* b = (block*)BLOCK_BUFFER_METADATA(p);
-
-    b->free = true;
-    char* new = kmalloc(size);
-
-    memcpy(new, p, size > b->size ? b->size : size);
-
-    return b;
-}
+ 
+void* kmalloc(u64 size) {
+    if (!size) return NULL;
+    if (size > (u64)-1 - (HEAP_ALIGN - 1)) return NULL;
+    size = ALIGN(size, HEAP_ALIGN);
+ 
+    header_t* block = get_free_block(size);
+    if (!block) {
+#ifdef DEBUG
+        dprintf("ERR: there is no available header\n");
 #endif
-
-void *kmalloc_align(unsigned long size, size_t alignment) {
-    block* b = create_block(size, alignment);
-
-    return b ? (void *)(BLOCK_BUFFER(b)) : NULL;
-}
-
-void dump_heap() {
-    block* curl = heap_ptr;
-    block* last = heap_ptr;
-    while (curl) {
-        last = curl;
-        #ifdef DEBUG
-            printf("  Block at %p (Buffer at %llu) with size = %zu bytes, free = %d, next = %p\n", curl, ((u64)curl + sizeof(block)), curl->size, curl->free, curl->next);
-        #else
-            printf("  Block at %p with size = %d bytes, free = %d, next = %p\n", curl, curl->size, curl->free, curl->next);
-        #endif
-
-        curl = curl->next;
+        return NULL;
     }
-    printf("Free memory: %dMb\n", (u32)last->size / 1048576);
+ 
+    split_block(block, size);
+    block->free = 0;
+ 
+#ifdef DEBUG
+    dprintf("OK : block %p, size %llu\n", (void*)block, (unsigned long long)block->size);
+#endif
+    return block + 1;
 }
 
-void kfree(void *ptr) {
-    if (!ptr) return;
+void kfree(void *p) {
+    if (!p) return;
 
-    block *b = (block*)(BLOCK_BUFFER_METADATA(ptr));
-    if (b->magic != BLOCK_MAGIC) return;
+    header_t* header = p - sizeof(header_t);
+    header->free = 1;
 
-    b->free = true;
+    #ifdef DEBUG
+        dprintf("LOG: header freed (addr: %p, size: %llu)\n", header, header->size);
+    #endif
 }
 
-// Something basic about dma, for pci devices
-void* dma_create_pool(u64 size, u64 n, u32 alignment) {
-    return memset((void*)ALIGN((u64)kmalloc_align(size * n, alignment), alignment), 0, size * n);
-    /*
-    * kmalloc_align just align the size with the passed alignment, so you just can align the
-    * returned address. someone has to remake that, it waste memory
-    */
-}
+#ifdef DEBUG
+    void dump_heap() {
+        debug_printf(NULL, "\n-- Heap dump --\n\r");
+
+        header_t* curl = head;
+
+        while (curl) {
+            debug_printf(NULL, "block; {address: 0x%p, size: %llu, free: %d}\n\r", curl, curl->size, curl->free);
+
+            curl = curl->next;
+        }
+
+        debug_printf(NULL, "\n-- Heap dump end --\n\r");
+    }
+#endif

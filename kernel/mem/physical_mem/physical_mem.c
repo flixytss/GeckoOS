@@ -130,6 +130,8 @@ void initialize_memory_manager_from_mbi(u64 mbi_addr)
                         if (entry->length) set_printf_color(VGA_COLOR_DARK_GREY);
                         else set_printf_color(VGA_COLOR_RED);
                         printf("Available memory at 0x%llu with %llu bytes\n", entry->base_addr, entry->length);
+                    #endif
+                    #ifdef MISCELLANEOUS
                         if (!entry->length)
                             printf("Available memory with negative length? Let's ignore it");
                     #endif

@@ -81,10 +81,6 @@ static bool follow_output = true;
 
 void putchar(char c, u8 color)
 {
-    #ifdef SERIAL_ENABLED
-        serial_putc(c);
-    #endif
-
     if (fb_cols == 0)
         fb_update_dims();
 

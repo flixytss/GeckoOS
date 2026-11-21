@@ -4,12 +4,6 @@
     (C) Copyright 2026 Pumpkicks
 */
 
-/*
-    i will remake all the files that are related to usb, i will make this file
-    based of what i understood of the linux uhci-hcd.c file. some GPL3-0 licence
-    and 2026 by Pumpkicks
-*/
-
 #include "drivers/usb/host/uhci-hcd.h"
 #include "drivers/interfaces/uhci.h"
 #include "drivers/pci.h"
@@ -20,6 +14,7 @@
 #include "sys/types.h"
 #include "terminal/printf.h"
 #include "terminal/terminal.h"
+#include <mem/physical_mem.h>
 
 static u8 uhci_readb(const struct uhci_hcd *hcd, u16 offset) {
     return inb(hcd->io_port + offset);
@@ -108,11 +103,25 @@ static void wakeup_rh(struct uhci_hcd* hcd) {
     hcd->rh_state = UHCI_RH_RUNNING;
 }
 
+static int count_rh_ports(struct uhci_hcd* hcd) {
+    int ports;
+    for (ports = 0; ports < 7; ports++) {
+        u16 reg = PORTSC1 + (sizeof(u16) * ports);
+        u16 port = uhci_readw(hcd, reg);
+
+        if (!(port & 0x0080) || port == 0xFFFF) break;
+    }
+
+    return ports;
+}
+
 int uhci_start(struct uhci_hcd* hcd) {
     uhci_generic_reset_hc(hcd);
     configure_hc(hcd);
     hcd->is_initialized = 1;
     start_rh(hcd);
+
+    hcd->rh_numports = count_rh_ports(hcd);
 
     return 0;
 }
@@ -121,13 +130,14 @@ struct uhci_hcd* uhci_create(struct pci_dev* dev) {
     struct uhci_hcd* hcd = memset(kmalloc(sizeof(struct uhci_hcd)), 0, sizeof(struct uhci_hcd)); // TODO: Add out of memory
 
     hcd->dev = dev;
-    hcd->io_port = dev->readl(dev, 4) & ~0xF;
+    hcd->io_port = dev->get_base_memory(dev, 4) & ~0xF;
 
-    hcd->frame_list_dma = dma_create_pool(1, 1024, 4096);
-    hcd->td_pool = dma_create_pool(sizeof(struct uhci_td*), 16, 4);
-    hcd->qh_pool = dma_create_pool(sizeof(struct uhci_qh*), 8, 4);
+    // Someday we will have proper DMA functions...
+    // hcd->frame_list_dma = kmalloc_align(1024, 4096);
+    // hcd->td_pool = kmalloc_align(sizeof(struct uhci_td) * 32, 16);
+    // hcd->qh_pool = kmalloc_align(sizeof(struct uhci_qh) * 8, 16);
 
-    if (!hcd->frame_list_dma || !hcd->td_pool || !hcd->qh_pool)
-        printf("failed to create dma pools\n");
+    if (!hcd->frame_list_dma || !hcd->td_pool || !hcd->qh_pool) printf("failed to create dma pools\n");
+
     return hcd;
 }
