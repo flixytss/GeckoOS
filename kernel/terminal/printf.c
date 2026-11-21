@@ -1,3 +1,5 @@
+#include <drivers/apic/lapic.h>
+#include <drivers/pit.h>
 #include <drivers/serial.h>
 #define NANOPRINTF_IMPLEMENTATION
 #include "drivers/vga.h"
@@ -31,7 +33,7 @@ static void debug_wrapper(int c, void *ctx) {
 
 int debug_printf(const char* function_name, const char *fmt, ...) { // Prints to serial instead of framebuffer
     if (function_name)
-        debug_printf(NULL, "%s: ", function_name);
+        debug_printf(NULL, "[%llu, %llu] %s: ", pit_timer, lapic_timer_tick, function_name);
 
     va_list a;
     va_start(a, fmt);

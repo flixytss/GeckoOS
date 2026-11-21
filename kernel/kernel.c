@@ -151,10 +151,6 @@ void kmain() {
 
     vfs_mkdir_path("/ye");
     vfs_create_path("/ye/file");
-    // struct vfs_dir* dir = vfs_opendir_path("/ye");
-
-    // printf("inode: %llu\n", dir->current->ino);
-    // printf("inode: %p %llu\n", dir, dir->current->ino);
 
     while (1) {
         printc("gecko> ", PROMPT_COLOR);
