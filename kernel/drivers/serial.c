@@ -3,7 +3,7 @@
 
 #define PORT 0x3f8
 
-static int serial_initialized = 0;
+int serial_initialized = 0;
 
 int serial_init() {
     outb(PORT + 1, 0x00);    // Disable all interrupts

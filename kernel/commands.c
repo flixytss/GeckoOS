@@ -276,8 +276,6 @@ static void cmd_ls(u8 color) {
     if (!fss[actual_fs]) { printf("Not mounted\n"); return; }
     entries = fss[actual_fs]->root_dir.get_entries(&fss[actual_fs]->root_dir);
 
-    // printf("%d %s\n", entries.entries[3].dir.get_entries(&entries.entries[3].dir).count, entries.entries[3].dir.get_entries(&entries.entries[3].dir).entries[2].file.name);
-
     for (i = 0; i < (int)entries.count; i++) {
         switch(entries.entries[i].type) {
         case ENTRY_FILE:      printc("[FILE] ", VGA_COLOR_LIGHT_GREEN); break;
@@ -539,8 +537,6 @@ static void cmd_meminfo(u8 color) {
     printf("  Heap base : %llx\n", max_mem_used.base_addr + 0x100000);
     printf("  Heap end  : %llx (%lluMb window)\n", (max_mem_used.base_addr + 0x100000) + max_mem_used.length, max_mem_used.length / 1048576);
     printf("  Memory size  : %lluMb\n", max_mem_used.length / 1048576);
-    printc("Heap map:\n", color);
-    dump_heap();
     printc("\n", color);
 }
 

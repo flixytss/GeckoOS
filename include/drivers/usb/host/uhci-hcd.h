@@ -29,7 +29,7 @@ struct uhci_hcd {
     struct pci_dev* dev;
 
     // frame list
-    void* frame_list_dma; // this is just an aligned address by dma_create_pool
+    void* frame_list_dma; // this is just an aligned address by kmalloc
     u32 frame_number;
 
     struct uhci_td** td_pool;

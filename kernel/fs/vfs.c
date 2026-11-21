@@ -24,6 +24,7 @@ void vfs_fat32_init() {
     ops->write = fat32_vfs_write_file;
     ops->mkdir = fat32_vfs_mkdir;
     ops->create = fat32_vfs_create;
+    ops->opendir = fat32_vfs_opendir;
 }
 void vfs_devfs_init() {
     if (vfs_ops[VFS_OPS_DEVFS]) return;
@@ -111,10 +112,10 @@ int vfs_lookup_path(const char* path, struct vfs_inode** buffer) {
     if (!search_in) return -EINVAL;
 
     while (tok) {
-        if (vfs_lookup(search_in, tok, &search_in) != 0)
-            return -ENOENT;
         if (search_in->mount)
             search_in = search_in->mount->root;
+        if (vfs_lookup(search_in, tok, &search_in) != 0)
+            return -ENOENT;
 
         tok = strtok(NULL, "/");
     }
@@ -292,16 +293,15 @@ int vfs_create_path(const char* path) {
     return -ENOMEM;
 }
 
-int vfs_opendir(const char* path, struct vfs_dir* dir) {
-    if (!dir) return -EINVAL;
+struct vfs_dir* vfs_opendir(struct vfs_inode* inode) {
+    if (inode->mode != VFS_DIR) return NULL;
+    return inode->ops->opendir(inode);
+}
 
+struct vfs_dir* vfs_opendir_path(const char* path) {
     struct vfs_inode* inode;
     if (vfs_lookup_path(path, &inode) != 0)
-        return -ENOENT;
-    if (inode->mode != VFS_DIR)
-        return -ENOENT;
+        return NULL;
 
-    inode->ops->opendir(inode, dir);
-
-    return 0;
+    return inode->ops->opendir(inode);
 }

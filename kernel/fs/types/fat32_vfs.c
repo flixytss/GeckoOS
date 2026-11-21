@@ -15,10 +15,12 @@ int fat32_vfs_mkdir(struct vfs_inode* inode, const char* name)
     { return fat32_mkdir(inode->fs->reserved, inode->ino, name); }
 
 int fat32_vfs_create(struct vfs_inode* inode, const char* name)
-    { return fat32_create_file(inode->fs->reserved, (char*)name, (const u8*)"", 0); }
+    { return fat32_create_file(inode->fs->reserved, inode->ino, (char*)name, (const u8*)"", 0); }
 
 int fat32_vfs_lookup(struct vfs_inode* inode, const char* name, struct vfs_inode** buffer) {
     struct fs_entries_t entries = fat32_get_dir_entries(inode->fs->reserved, inode->ino);
+
+    // printf("wanted %s\n", name);
 
     for (int i = 0; i < entries.count; i++) {
         if (strcasecmp(name, entries.entries[i].file.name) != 0) continue;

@@ -55,7 +55,7 @@ typedef struct {
 struct drive_fs_t *fat32_drive_open( struct kdrive_t *drive, struct partition_t *partition );
 struct drive_fs_t *fat32_drive_close( struct drive_fs_t *fs );
 
-int fat32_create_file( struct drive_fs_t *fs, char *name,
+int fat32_create_file( struct drive_fs_t *fs, u32 dir_cluster, char *name,
                        const u8 *content, size_t len );
 
 int fat32_delete_file( struct drive_fs_t *fs, char *name );

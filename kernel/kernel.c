@@ -5,7 +5,6 @@
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
 #include "mem/mmu.h"
-#include "terminal/printf.h"
 #include <colors.h>
 #include <commands.h>
 #include <drivers/apic/ioapic.h>
@@ -57,13 +56,14 @@ driver_init drivers[] = {
     pci_detect_controllers,
     net_init,
     arp_init,
-    #ifdef SERIAL_ENABLED
-        (void*)serial_init,
-    #endif
     keyboard_install
 };
 
 __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
+    #ifdef SERIAL_ENABLED
+        serial_init();
+    #endif
+
     initialize_memory_manager_from_mbi(mbi);
     kalloc_init(max_mem_used.base_addr + 0x100000, max_mem_used.length);
 
@@ -147,17 +147,14 @@ void kmain() {
 
     // Create /dev in the main filesystem and mount devfs there
     vfs_mkdir_path("/dev");
-    vfs_mount("/dev", get_vfs_(2));
+    vfs_mount("/dev", get_vfs_(1));
 
-    // Adds every partition to its own directory
-    struct kdrive_t* drive = get_kdrive(0);
-    for (int i = 0; i < drive->partitions.count; i++) {
-        char path[512];
-        npf_snprintf(path, 512, "P%s", drive->partitions.partitions->sysname);
+    vfs_mkdir_path("/ye");
+    vfs_create_path("/ye/file");
+    // struct vfs_dir* dir = vfs_opendir_path("/ye");
 
-        vfs_mkdir_path(path);
-        // vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
-    }
+    // printf("inode: %llu\n", dir->current->ino);
+    // printf("inode: %p %llu\n", dir, dir->current->ino);
 
     while (1) {
         printc("gecko> ", PROMPT_COLOR);
