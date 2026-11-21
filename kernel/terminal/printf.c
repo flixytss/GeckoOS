@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 #include <drivers/apic/lapic.h>
 #include <drivers/pit.h>
+=======
+>>>>>>> 69b1f53 (rewrited again the mmu, and added serial as a terminal for debug)
 #include <drivers/serial.h>
 #define NANOPRINTF_IMPLEMENTATION
 #include "drivers/vga.h"
