@@ -76,7 +76,7 @@ void kfree(void *p) {
 
 #ifdef DEBUG
     void dump_heap() {
-        debug_printf(NULL, "\n-- Heap dump --\n\r");
+        debug_printf(NULL, "\n-- Heap dump --\n\n\r");
 
         header_t* curl = head;
 
