@@ -4,6 +4,7 @@
 #include "drivers/ps2.h"
 #include "arch/x86_64/isr.h"
 #include <drivers/pit.h>
+#include "gk/io.h"
 #include "mem/mmu.h"
 #include <colors.h>
 #include <commands.h>
@@ -79,7 +80,7 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
     irq_install();
 
     if (has_apic) {
-        sti();
+        cli();
         if (lapic_init())
             printf("Setting up LAPIC failed.");
         
