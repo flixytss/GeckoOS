@@ -150,9 +150,6 @@ void kmain() {
     vfs_mkdir_path("/dev");
     vfs_mount("/dev", get_vfs_(1));
 
-    vfs_mkdir_path("/ye");
-    vfs_create_path("/ye/file");
-
     while (1) {
         printc("gecko> ", PROMPT_COLOR);
         unsigned char buff[512];
