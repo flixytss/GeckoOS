@@ -151,7 +151,7 @@ void kmain() {
         npf_snprintf(path, 512, "P%s", drive->partitions.partitions->sysname);
 
         vfs_mkdir_path(path);
-        vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
+        // vfs_mount(path, get_vfs_(vfs_add_fs(fs_partition_open(drive, &drive->partitions.partitions[i]))));
     }
 
     while (1) {
