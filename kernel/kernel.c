@@ -22,6 +22,7 @@
 #include <net/net.h>
 #include "sys/types.h"
 #include <terminal/terminal.h>
+#include <terminal/printf.h>
 #include <fs/fs.h>
 #include <drivers/hid/keyboard.h>
 #include <fs/vfs.h>
@@ -83,7 +84,6 @@ __attribute__((section(".text.entry"))) void _entry(u64 mbi) {
         cli();
         if (lapic_init())
             printf("Setting up LAPIC failed.");
-        
         ioapic_init();
         sti();
 
